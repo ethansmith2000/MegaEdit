@@ -19,78 +19,155 @@ import cv2
 from typing import Optional, Union, Tuple, List, Callable, Dict
 from IPython.display import display
 from tqdm.notebook import tqdm
-
-
-def diffusion_step(model, controller, latents, context, t, guidance_scale, low_resource=False):
-    if low_resource:
-        noise_pred_uncond = model.unet(latents, t, encoder_hidden_states=context[0])["sample"]
-        noise_prediction_text = model.unet(latents, t, encoder_hidden_states=context[1])["sample"]
-    else:
-        latents_input = torch.cat([latents] * 2)
-        noise_pred = model.unet(latents_input, t, encoder_hidden_states=context)["sample"]
-        noise_pred_uncond, noise_prediction_text = noise_pred.chunk(2)
-    noise_pred = noise_pred_uncond + guidance_scale * (noise_prediction_text - noise_pred_uncond)
-    latents = model.scheduler.step(noise_pred, t, latents)["prev_sample"]
-    latents = controller.step_callback(latents)
-    return latents
-
-
-def latent2image(vae, latents):
-    latents = 1 / 0.18215 * latents
-    image = vae.decode(latents)['sample']
-    image = (image / 2 + 0.5).clamp(0, 1)
-    image = image.cpu().permute(0, 2, 3, 1).float().numpy()
-    # image = (image * 255).astype(np.uint8)
-    image = (image * 255)
-    return image
-
-
-def init_latent(latent, model, height, width, generator, batch_size):
-    if latent is None:
-        latent = torch.randn(
-            (1, model.unet.in_channels, height // 8, width // 8),
-            generator=generator,
-        )
-    latents = latent.expand(batch_size, model.unet.in_channels, height // 8, width // 8).to(model.device)
-    return latent, latents
+import torch.nn.functional as F
+from p2p.prompt2prompt import AttentionJustReweight
 
 
 def register_attention_control(model, controller):
-    def ca_forward(self, place_in_unet):
+    def ca_forward(self, place_in_unet, controller):
         to_out = self.to_out
         if type(to_out) is torch.nn.modules.container.ModuleList:
             to_out = self.to_out[0]
         else:
             to_out = self.to_out
 
-        def forward(norm_hidden_states, encoder_hidden_states=None, attention_mask=None):
-            batch_size, sequence_length, dim = norm_hidden_states.shape
-            h = self.heads
-            q = self.to_q(norm_hidden_states)
-            is_cross = encoder_hidden_states is not None
-            encoder_hidden_states = encoder_hidden_states if is_cross else norm_hidden_states
-            k = self.to_k(encoder_hidden_states)
-            v = self.to_v(encoder_hidden_states)
-            q = self.reshape_heads_to_batch_dim(q)
-            k = self.reshape_heads_to_batch_dim(k)
-            v = self.reshape_heads_to_batch_dim(v)
+        def _attention_main(query, key, value, is_cross, attention_mask=None):
+            if self.upcast_attention:
+                query = query.float()
+                key = key.float()
 
-            sim = torch.einsum("b i d, b j d -> b i j", q, k) * self.scale
+            attention_scores = torch.baddbmm(
+                torch.empty(query.shape[0], query.shape[1], key.shape[1], dtype=query.dtype, device=query.device),
+                query,
+                key.transpose(-1, -2),
+                beta=0,
+                alpha=self.scale,
+            )
 
             if attention_mask is not None:
-                attention_mask = attention_mask.reshape(batch_size, -1)
-                max_neg_value = -torch.finfo(sim.dtype).max
-                attention_mask = attention_mask[:, None, :].repeat(h, 1, 1)
-                sim.masked_fill_(~attention_mask, max_neg_value)
+                attention_scores = attention_scores + attention_mask
+
+            if self.upcast_softmax:
+                attention_scores = attention_scores.float()
+
+            attention_probs = attention_scores.softmax(dim=-1)
+            attention_probs = controller(attention_probs, is_cross, place_in_unet)
+
+            # cast back to the original dtype
+            attention_probs = attention_probs.to(value.dtype)
+
+            # compute attention output
+            hidden_states = torch.bmm(attention_probs, value)
+
+            # reshape hidden_states
+            hidden_states = self.reshape_batch_dim_to_heads(hidden_states)
+            return hidden_states
+
+        def _attention_just_weight(query, key, value, is_cross, attention_mask=None):
+            if self.upcast_attention:
+                query = query.float()
+                key = key.float()
+
+            attention_scores = torch.baddbmm(
+                torch.empty(query.shape[0], query.shape[1], key.shape[1], dtype=query.dtype, device=query.device),
+                query,
+                key.transpose(-1, -2),
+                beta=0,
+                alpha=self.scale,
+            )
+
+            # take weighted sum of resulting probs modified attention scores and directly modified probs
+            attention_mod_scores = controller(attention_scores, is_cross, place_in_unet)
+            attention_mod_probs = attention_mod_scores.softmax(dim=-1)
+
+            if attention_mask is not None:
+                attention_scores = attention_scores + attention_mask
+
+            if self.upcast_softmax:
+                attention_scores = attention_scores.float()
+
+            attention_probs = attention_scores.softmax(dim=-1)
+            attention_probs = controller(attention_probs, is_cross, place_in_unet)
+
+            coeff = 0.6
+            attention_probs = attention_probs * 0.5 + attention_mod_probs * (1-0.5)
+
+            # cast back to the original dtype
+            attention_probs = attention_probs.to(value.dtype)
+
+            # compute attention output
+            hidden_states = torch.bmm(attention_probs, value)
+
+            # reshape hidden_states
+            hidden_states = self.reshape_batch_dim_to_heads(hidden_states)
+            return hidden_states
+
+        def forward(hidden_states, encoder_hidden_states=None, attention_mask=None):
+            batch_size, sequence_length, _ = hidden_states.shape
+
+            if encoder_hidden_states is not None:
+                is_cross = True
+            else:
+                is_cross = False
+
+            encoder_hidden_states = encoder_hidden_states
+
+            if self.group_norm is not None:
+                hidden_states = self.group_norm(hidden_states.transpose(1, 2)).transpose(1, 2)
+
+            query = self.to_q(hidden_states)
+            dim = query.shape[-1]
+            query = self.reshape_heads_to_batch_dim(query)
+
+            if self.added_kv_proj_dim is not None:
+                key = self.to_k(hidden_states)
+                value = self.to_v(hidden_states)
+                encoder_hidden_states_key_proj = self.add_k_proj(encoder_hidden_states)
+                encoder_hidden_states_value_proj = self.add_v_proj(encoder_hidden_states)
+
+                key = self.reshape_heads_to_batch_dim(key)
+                value = self.reshape_heads_to_batch_dim(value)
+                encoder_hidden_states_key_proj = self.reshape_heads_to_batch_dim(encoder_hidden_states_key_proj)
+                encoder_hidden_states_value_proj = self.reshape_heads_to_batch_dim(encoder_hidden_states_value_proj)
+
+                key = torch.concat([encoder_hidden_states_key_proj, key], dim=1)
+                value = torch.concat([encoder_hidden_states_value_proj, value], dim=1)
+            else:
+                encoder_hidden_states = encoder_hidden_states if encoder_hidden_states is not None else hidden_states
+                key = self.to_k(encoder_hidden_states)
+                value = self.to_v(encoder_hidden_states)
+
+                key = self.reshape_heads_to_batch_dim(key)
+                value = self.reshape_heads_to_batch_dim(value)
+
+            if attention_mask is not None:
+                if attention_mask.shape[-1] != query.shape[1]:
+                    target_length = query.shape[1]
+                    attention_mask = F.pad(attention_mask, (0, target_length), value=0.0)
+                    attention_mask = attention_mask.repeat_interleave(self.heads, dim=0)
 
             # attention, what we cannot get enough of
-            attn = sim.softmax(dim=-1)
-            attn = controller(attn, is_cross, place_in_unet)
-            out = torch.einsum("b i j, b j d -> b i d", attn, v)
-            out = self.reshape_batch_dim_to_heads(out)
-            return to_out(out)
+            if self._use_memory_efficient_attention_xformers:
+                hidden_states = self._memory_efficient_attention_xformers(query, key, value, attention_mask)
+                # Some versions of xformers return output in fp32, cast it back to the dtype of the input
+                hidden_states = hidden_states.to(query.dtype)
+            else:
+                if self._slice_size is None or query.shape[0] // self._slice_size == 1:
+                    hidden_states = self._attention(query, key, value, is_cross, attention_mask)
+                else:
+                    hidden_states = self._sliced_attention(query, key, value, sequence_length, dim, attention_mask)
 
-        return forward
+            # linear proj
+            hidden_states = self.to_out[0](hidden_states)
+
+            # dropout
+            hidden_states = self.to_out[1](hidden_states)
+            return hidden_states
+
+        if isinstance(controller, AttentionJustReweight):
+            return _attention_just_weight, forward
+        else:
+            return _attention_main, forward
 
     class DummyController:
 
@@ -105,7 +182,7 @@ def register_attention_control(model, controller):
 
     def register_recr(net_, count, place_in_unet):
         if net_.__class__.__name__ == 'CrossAttention':
-            net_.forward = ca_forward(net_, place_in_unet)
+            net_._attention, net_.forward = ca_forward(net_, place_in_unet, controller)
             return count + 1
         elif hasattr(net_, 'children'):
             for net__ in net_.children():

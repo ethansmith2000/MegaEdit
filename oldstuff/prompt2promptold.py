@@ -9,16 +9,17 @@ from PIL import Image
 import torch
 
 
+#TODO steps might not be resetting correctly
 class AttentionControlEdit:
 
     def replace_self_attention(self, attn_base, attn_replace, place_in_unet):
-        if True:  # attn_replace.shape[2] <= 32 ** 2:
+        if attn_replace.shape[2] <= self.threshold_res ** 2:
             # attn_base = attn_base.unsqueeze(0).expand(att_replace.shape[0], *attn_base.shape)
             return attn_base
         else:
             return attn_replace
 
-    def __init__(self, batch_size, num_steps: int, self_replace_steps, before):
+    def __init__(self, batch_size, num_steps: int, self_replace_steps, before, threshold_res=32):
         self.batch_size = batch_size
         self.num_self_replace = int(self_replace_steps * num_steps)
         self.local_blend = None
@@ -28,32 +29,25 @@ class AttentionControlEdit:
         self.num_att_layers = -1
         self.cur_att_layer = 0
         self.before = before
+        self.threshold_res = threshold_res
 
     def __call__(self, attn, is_cross: bool, place_in_unet: str):
-        # h = attn.shape[0]
-        # attn[h // 2:] = self.forward(attn[h // 2:], is_cross, place_in_unet)
-        cond = self.cur_step >= self.num_self_replace if not self.before else self.cur_step < self.num_self_replace
+        head = attn.shape[0]
+        cond_attn = attn[head // 2:]
+        cond = self.cur_step < self.num_self_replace if self.before else self.cur_step >= self.num_self_replace
         if cond:
-            # h = attn.shape[0] // (self.batch_size * 2)
-            # batch_size, seq_len, dim = attn.shape
-            # attn = attn.reshape(batch_size // h, h, seq_len, dim)
-            # attn = attn.permute(0, 2, 1, 3).reshape(batch_size // h, seq_len, dim * h)
-
-            # TODO this is wildly inefficient
-            mask = [1] * 8 + [0] * 8 + [1] * 8 + [0] * 8
-            mask = torch.tensor(mask, dtype=bool)
-            attn_base, attn_replace = attn[mask], attn[~mask]
+            h = cond_attn.shape[0] // (self.batch_size)
+            cond_attn = cond_attn.reshape(self.batch_size, h, *cond_attn.shape[1:])
+            attn_base, attn_replace = cond_attn[0:1], cond_attn[1:]
             if is_cross:
                 # alpha_words = self.cross_replace_alpha[self.cur_step]
                 # attn_replace_new = self.replace_cross_attention(attn_base, attn_replace) * alpha_words + (1 - alpha_words) * attn_replace
                 # attn[1:] = attn_replace_new
                 pass
             else:
-                attn[~mask] = self.replace_self_attention(attn_base, attn_replace, place_in_unet)
-
-            # batch_size, seq_len, dim = attn.shape
-            # attn = attn.reshape(batch_size, seq_len, h, dim // h)
-            # attn = attn.permute(0, 2, 1, 3).reshape(batch_size * h, seq_len, dim // h)
+                cond_attn[1:] = self.replace_self_attention(attn_base, attn_replace, place_in_unet)
+            cond_attn = cond_attn.reshape(self.batch_size * h, *cond_attn.shape[2:])
+            attn[head // 2:] = cond_attn
 
         self.cur_att_layer += 1
         if self.cur_att_layer == self.num_att_layers:
@@ -67,12 +61,6 @@ class AttentionControlEdit:
     def reset(self):
         self.cur_step = 0
         self.cur_att_layer = 0
-
-
-class AttentionReplace(AttentionControlEdit):
-
-    def __init__(self, batch_size, num_steps: int, self_replace_steps: float, before=True):
-        super(AttentionReplace, self).__init__(batch_size, num_steps, self_replace_steps, before)
 
 
 # ----
@@ -181,6 +169,7 @@ def register_attention_control(model, controller):
 
         return _attention, forward
 
+    #TODO find way to go back to og forward method
     class DummyController:
 
         def __call__(self, *args):

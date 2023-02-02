@@ -32,20 +32,6 @@ class ScoreParams:
 
 
 def get_matrix(size_x, size_y, gap):
-    matrix = []
-    for i in range(len(size_x) + 1):
-        sub_matrix = []
-        for j in range(len(size_y) + 1):
-            sub_matrix.append(0)
-        matrix.append(sub_matrix)
-    for j in range(1, len(size_y) + 1):
-        matrix[0][j] = j * gap
-    for i in range(1, len(size_x) + 1):
-        matrix[i][0] = i * gap
-    return matrix
-
-
-def get_matrix(size_x, size_y, gap):
     matrix = np.zeros((size_x + 1, size_y + 1), dtype=np.int32)
     matrix[0, 1:] = (np.arange(size_y) + 1) * gap
     matrix[1:, 0] = (np.arange(size_x) + 1) * gap

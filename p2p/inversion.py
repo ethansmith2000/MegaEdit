@@ -56,13 +56,13 @@ def get_noise_pred_single(model, latents, t, context):
     return noise_pred
 
 
-def get_noise_pred(model, latents, t, context, is_forward=True):
-    latents_input = torch.cat([latents] * 2)
-    guidance_scale = 1 if is_forward else GUIDANCE_SCALE
-    noise_pred = model.unet(latents_input, t, encoder_hidden_states=context)["sample"]
-    noise_pred_uncond, noise_prediction_text = noise_pred.chunk(2)
-    noise_pred = noise_pred_uncond + guidance_scale * (noise_prediction_text - noise_pred_uncond)
-    return noise_pred
+# def get_noise_pred(model, latents, t, context, is_forward=True):
+#     latents_input = torch.cat([latents] * 2)
+#     guidance_scale = 1 if is_forward else GUIDANCE_SCALE
+#     noise_pred = model.unet(latents_input, t, encoder_hidden_states=context)["sample"]
+#     noise_pred_uncond, noise_prediction_text = noise_pred.chunk(2)
+#     noise_pred = noise_pred_uncond + guidance_scale * (noise_prediction_text - noise_pred_uncond)
+#     return noise_pred
 
 
 @torch.no_grad()

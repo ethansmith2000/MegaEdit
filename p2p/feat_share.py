@@ -101,10 +101,11 @@ def register_res_control(model, controller, skip_layers=3):
 class FeatControl:
 
     def __call__(self, feat):
-        cond = self.cur_step >= self.num_self_replace if not self.before else self.cur_step < self.num_self_replace
+        cond = self.cur_step < self.num_self_replace #if self.before else self.cur_step >= self.num_self_replace
         cond2 = self.cur_layer > (12 - self.num_res_layers)
         if cond and cond2:
             mask = torch.tensor([1, 0, 1, 0], dtype=bool)
+            #TODO consider mixing?
             feat[~mask] = feat[mask]
 
         self.cur_layer += 1
@@ -122,5 +123,4 @@ class FeatControl:
         self.cur_layer = 0
         self.num_res_layers = 0
         self.cur_step = 0
-        self.before = before
 

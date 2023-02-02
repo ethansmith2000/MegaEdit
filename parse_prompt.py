@@ -112,6 +112,7 @@ def get_prompts_with_weights(pipe, prompt, max_length):
     Tokenize a list of prompts and return its tokens with weights of each token.
     No padding, starting or ending token is included.
     """
+    assert isinstance(prompt, list)
     tokens = []
     weights = []
     truncated = False

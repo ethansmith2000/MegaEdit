@@ -12,18 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import inspect
-from typing import Callable, List, Optional, Union
+from typing import List, Union
 
 import torch
 
-from diffusers.utils import is_accelerate_available
-from packaging import version
 from transformers import CLIPFeatureExtractor, CLIPTextModel, CLIPTokenizer
 
-from diffusers.configuration_utils import FrozenDict
 from diffusers.models import AutoencoderKL, UNet2DConditionModel
-from diffusers.pipeline_utils import DiffusionPipeline
 from diffusers.schedulers import (
     DDIMScheduler,
     DPMSolverMultistepScheduler,
@@ -32,14 +27,12 @@ from diffusers.schedulers import (
     LMSDiscreteScheduler,
     PNDMScheduler,
 )
-from diffusers.utils import deprecate, logging
-from diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
+from diffusers.utils import logging
 from diffusers.pipelines.stable_diffusion import StableDiffusionSafetyChecker
 from diffusers import StableDiffusionPipeline
 
 import parse_prompt
-from p2p import prompt2promptold, ptp_utils
-
+from p2p import ptp_utils
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
