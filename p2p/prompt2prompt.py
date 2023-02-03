@@ -294,9 +294,11 @@ class AttentionJustReweight:
             cond_attn = attn[h // 2:]
 
             cond_attn = cond_attn.reshape(self.batch_size, h//2, *attn.shape[1:])
+            old_mean = cond_attn.mean()
             cond_attn = cond_attn[:, :, :, :] * self.equalizer[:, None, None, :]
+            new_mean = cond_attn.mean()
             if self.normalize:
-                cond_attn = cond_attn / cond_attn.sum(-1, keepdims=True)
+                cond_attn = cond_attn / (new_mean/old_mean)
             cond_attn = cond_attn.reshape(self.batch_size * (h//2), *attn.shape[1:])
 
             attn[h // 2:] = cond_attn

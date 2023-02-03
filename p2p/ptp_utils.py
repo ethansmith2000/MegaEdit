@@ -20,7 +20,6 @@ from typing import Optional, Union, Tuple, List, Callable, Dict
 from IPython.display import display
 from tqdm.notebook import tqdm
 import torch.nn.functional as F
-from p2p.prompt2prompt import AttentionJustReweight
 
 
 def register_attention_control(model, controller):
@@ -78,6 +77,8 @@ def register_attention_control(model, controller):
 
             # take weighted sum of resulting probs modified attention scores and directly modified probs
             attention_mod_scores = controller(attention_scores, is_cross, place_in_unet)
+            if self.upcast_softmax:
+                attention_mod_scores = attention_mod_scores.float()
             attention_mod_probs = attention_mod_scores.softmax(dim=-1)
 
             if attention_mask is not None:
@@ -89,8 +90,8 @@ def register_attention_control(model, controller):
             attention_probs = attention_scores.softmax(dim=-1)
             attention_probs = controller(attention_probs, is_cross, place_in_unet)
 
-            coeff = 0.6
-            attention_probs = attention_probs * 0.5 + attention_mod_probs * (1-0.5)
+            coeff = 0.82
+            attention_probs = attention_probs * coeff + attention_mod_probs * (1-coeff)
 
             # cast back to the original dtype
             attention_probs = attention_probs.to(value.dtype)
@@ -164,7 +165,7 @@ def register_attention_control(model, controller):
             hidden_states = self.to_out[1](hidden_states)
             return hidden_states
 
-        if isinstance(controller, AttentionJustReweight):
+        if controller.__class__.__name__ == 'AttentionJustReweight':
             return _attention_just_weight, forward
         else:
             return _attention_main, forward

@@ -4,16 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="first">
-      <change afterPath="$PROJECT_DIR$/example_use.py" afterDir="false" />
+    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="alls in a good place">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/example_use.py" beforeDir="false" afterPath="$PROJECT_DIR$/example_use.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/p2p/feat_share.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/feat_share.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/p2p/inversion.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/inversion.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/p2p/prompt2prompt.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/prompt2prompt.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/p2p/prompt2promptold.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/prompt2promptold.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/p2p/ptp_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/ptp_utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/p2p/seq_aligner.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/seq_aligner.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/parse_prompt.py" beforeDir="false" afterPath="$PROJECT_DIR$/parse_prompt.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -46,6 +42,11 @@
     &quot;last_opened_file_path&quot;: &quot;/Users/ethan.smith/Desktop/leo_branches/edict + other&quot;
   }
 }</component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/oldstuff" />
+    </key>
+  </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
@@ -62,7 +63,14 @@
       <option name="project" value="LOCAL" />
       <updated>1675304309153</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="alls in a good place">
+      <created>1675363168840</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1675363168840</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -78,6 +86,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="first" />
-    <option name="LAST_COMMIT_MESSAGE" value="first" />
+    <MESSAGE value="alls in a good place" />
+    <option name="LAST_COMMIT_MESSAGE" value="alls in a good place" />
   </component>
 </project>
