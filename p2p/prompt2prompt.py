@@ -196,6 +196,8 @@ class AttentionControl(abc.ABC):
         self.cur_step = 0
         self.cur_att_layer = 0
         self.cur_conv_layer = 0
+        if self.local_blend is not None:
+            self.local_blend.counter = 0
 
     def __init__(self, conv_replace_steps, num_steps, batch_size):
         self.cur_step = 0
@@ -354,16 +356,16 @@ class AttentionReweight(AttentionControlEdit):
 
     def __init__(self, prompts, num_steps: int, tokenizer, cross_replace_steps: float, self_replace_steps: float,
                  equalizer, local_blend: Optional[LocalBlend] = None, controller: Optional[AttentionControlEdit] = None,
-                 device=None, dtype=None):
+                 device=None, dtype=None, threshold_res=32, conv_replace_steps=0.3):
         super(AttentionReweight, self).__init__(prompts, num_steps, tokenizer, cross_replace_steps, self_replace_steps,
-                                                local_blend, device=device, dtype=dtype)
+                                                local_blend, device=device, dtype=dtype, threshold_res=threshold_res, conv_replace_steps=conv_replace_steps)
         self.equalizer = equalizer.to(device).to(dtype)
         self.prev_controller = controller
 
 
 def make_controller(prompts, tokenizer, NUM_DDIM_STEPS, cross_replace_steps: Dict[str, float],
                     self_replace_steps: float, blend_words=None, substruct_words=None, start_blend=0.2, th=(.3, .3),
-                    device=None, dtype=None, equalizer=None, conv_replace_steps=0.3) -> AttentionControlEdit:
+                    device=None, dtype=None, equalizer=None, conv_replace_steps=0.3, threshold_res=32) -> AttentionControlEdit:
     if blend_words is None:
         lb = None
     else:
@@ -374,11 +376,11 @@ def make_controller(prompts, tokenizer, NUM_DDIM_STEPS, cross_replace_steps: Dic
     #                                   self_replace_steps=self_replace_steps, local_blend=lb, device=device, dtype=dtype)
     # else:
     controller = AttentionRefine(prompts, NUM_DDIM_STEPS, tokenizer, cross_replace_steps=cross_replace_steps,
-                                 self_replace_steps=self_replace_steps, local_blend=lb, device=device, dtype=dtype, conv_replace_steps=conv_replace_steps)
+                                 self_replace_steps=self_replace_steps, local_blend=lb, device=device, dtype=dtype, conv_replace_steps=conv_replace_steps, threshold_res=threshold_res)
     if equalizer is not None:
         controller = AttentionReweight(prompts, NUM_DDIM_STEPS, tokenizer, cross_replace_steps=cross_replace_steps,
                                        self_replace_steps=self_replace_steps, equalizer=equalizer, local_blend=lb,
-                                       controller=controller, device=device, dtype=dtype)
+                                       controller=controller, device=device, dtype=dtype, conv_replace_steps=conv_replace_steps, threshold_res=threshold_res)
     return controller
 
 
@@ -424,6 +426,17 @@ class AttentionJustReweight:
         self.total_att_layers = 0
         self.batch_size = batch_size
         self.normalize = normalize
+
+
+def get_equalizer(text: str, tokenizer, word_select: Union[int, Tuple[int, ...]], values: Union[List[float], Tuple[float, ...]]):
+    if type(word_select) is int or type(word_select) is str:
+        word_select = (word_select,)
+    equalizer = torch.ones(1, 77)
+
+    for word, val in zip(word_select, values):
+        inds = ptp_utils.get_word_inds(text, word, tokenizer)
+        equalizer[:, inds] = val
+    return equalizer
 
 # class AttentionReplace(AttentionControlEdit):
 #
