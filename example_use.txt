@@ -52,6 +52,7 @@ latents = do_inversion(init_image, base_prompt, init_image_strength=1.0, mix_wei
 import torch
 import diffusers
 import transformers
+from PIL import Image
 
 from p2p.EDICT import do_inversion
 from p2p.feat_share import register_res_control, FeatControl
@@ -60,6 +61,13 @@ from p2p.prompt2prompt import AttentionRefine
 
 
 pipe = diffusers.StableDiffusionPipeline.from_pretrained("runwayml/stable-diffusion-v1-5").to("cuda").to(torch.float16)
+
+# WE HAVE TO USE DDIM scheduler for this to work
+pipe.scheduler = diffusers.DDIMScheduler.from_pretrained("runwayml/stable-diffusion-v1-5", subfolder="scheduler")
+
+# base prompt is just describing your init image, init is just PIL
+# we have to do inversion before patching attn layers
+latents = do_inversion(pipe, init_image, base_prompt, init_image_strength=1.0, mix_weight=1.0)
 
 attn_controller = AttentionRefine(prompts, 50, pipe.tokenizer,
                                   cross_replace_steps=0.2, #
@@ -76,8 +84,6 @@ register_res_control(pipe, res_controller, skip_layers=3)
 
 # torch.manual_seed(31)
 # latents = torch.randn(1, 4, 64, 64).expand(2, 4, 64, 64).to("cuda").to(torch.float16)
-
-latents = do_inversion(init_image, base_prompt, init_image_strength=1.0, mix_weight=1.0)
 
 latents = latents * pipe.scheduler.init_noise_sigma
 neg_prompt = "bad quality, low resolution, jpg artifacts"

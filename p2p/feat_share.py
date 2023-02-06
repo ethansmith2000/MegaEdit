@@ -57,7 +57,7 @@ def register_res_control(model, controller, skip_layers=3):
             if self.conv_shortcut is not None:
                 input_tensor = self.conv_shortcut(input_tensor)
 
-            hidden_states = controller(hidden_states)
+            hidden_states = controller(hidden_states, None, None)
 
             output_tensor = (input_tensor + hidden_states) / self.output_scale_factor
 

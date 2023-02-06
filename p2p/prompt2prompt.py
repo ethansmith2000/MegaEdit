@@ -11,6 +11,63 @@ import shutil
 from torch.optim.adam import Adam
 from PIL import Image
 
+# class EthanBlend:
+#
+#     def get_mask(self, x_t, maps, alpha, use_pool):
+#         k = 1
+#         maps = (maps * alpha).sum(-1).mean(1)
+#         if use_pool:
+#             maps = F.max_pool2d(maps, (k * 2 + 1, k * 2 + 1), (1, 1), padding=(k, k))
+#         mask = F.interpolate(maps, size=(x_t.shape[2:]))
+#         # TODO maybe use gaussian smoothing here?
+#         if True:
+#             pass
+#         mask = mask / mask.max(2, keepdims=True)[0].max(3, keepdims=True)[0]
+#         mask = mask.gt(self.th[1 - int(use_pool)])
+#         mask = mask[:1] + mask
+#         return mask
+#
+#     def __call__(self, x_t, attention_store, MAX_NUM_WORDS=77):
+#         self.counter += 1
+#         if self.counter > self.start_blend:
+#
+#             maps = attention_store["down_cross"][2:4] + attention_store["up_cross"][:3]
+#             maps = [item.reshape(self.alpha_layers.shape[0], -1, 1, 16, 16, MAX_NUM_WORDS) for item in maps]
+#             maps = torch.cat(maps, dim=1)
+#             mask = self.get_mask(x_t, maps, self.alpha_layers, True)
+#             if self.subtract_layers is not None:
+#                 maps_sub = ~self.get_mask(x_t, maps, self.subtract_layers, False)
+#                 mask = mask * maps_sub
+#             mask = mask.to(x_t.dtype)
+#             x_t = x_t[:1] + mask * (x_t - x_t[:1])
+#         return x_t
+#
+#     # th is threshold for mask
+#     def __init__(self, prompts: List[str], words: [List[List[str]]], tokenizer, NUM_DDIM_STEPS, subtract_words=None,
+#                  start_blend=0.2, th=(.3, .3), MAX_NUM_WORDS=77, device=None, dtype=None):
+#         alpha_layers = torch.zeros(len(prompts), 1, 1, 1, 1, MAX_NUM_WORDS)
+#         for i, (prompt, words_) in enumerate(zip(prompts, words)):
+#             if type(words_) is str:
+#                 words_ = [words_]
+#             for word in words_:
+#                 ind = ptp_utils.get_word_inds(prompt, word, tokenizer)
+#                 alpha_layers[i, :, :, :, :, ind] = 1
+#
+#         if subtract_words is not None:
+#             subtract_layers = torch.zeros(len(prompts), 1, 1, 1, 1, MAX_NUM_WORDS)
+#             for i, (prompt, words_) in enumerate(zip(prompts, subtract_words)):
+#                 if type(words_) is str:
+#                     words_ = [words_]
+#                 for word in words_:
+#                     ind = ptp_utils.get_word_inds(prompt, word, tokenizer)
+#                     subtract_layers[i, :, :, :, :, ind] = 1
+#             self.subtract_layers = subtract_layers.to(device).to(dtype)
+#         else:
+#             self.subtract_layers = None
+#         self.alpha_layers = alpha_layers.to(device).to(dtype)
+#         self.start_blend = int(start_blend * NUM_DDIM_STEPS)
+#         self.counter = 0
+#         self.th = th
 
 class LocalBlend:
 
@@ -20,6 +77,9 @@ class LocalBlend:
         if use_pool:
             maps = F.max_pool2d(maps, (k * 2 + 1, k * 2 + 1), (1, 1), padding=(k, k))
         mask = F.interpolate(maps, size=(x_t.shape[2:]))
+        # TODO maybe use gaussian smoothing here?
+        if True:
+            pass
         mask = mask / mask.max(2, keepdims=True)[0].max(3, keepdims=True)[0]
         mask = mask.gt(self.th[1 - int(use_pool)])
         mask = mask[:1] + mask
@@ -34,12 +94,13 @@ class LocalBlend:
             maps = torch.cat(maps, dim=1)
             mask = self.get_mask(x_t, maps, self.alpha_layers, True)
             if self.subtract_layers is not None:
-                maps_sub = ~self.get_mask(maps, self.subtract_layers, False)
+                maps_sub = ~self.get_mask(x_t, maps, self.subtract_layers, False)
                 mask = mask * maps_sub
             mask = mask.to(x_t.dtype)
             x_t = x_t[:1] + mask * (x_t - x_t[:1])
         return x_t
 
+    # th is threshold for mask
     def __init__(self, prompts: List[str], words: [List[List[str]]], tokenizer, NUM_DDIM_STEPS, subtract_words=None,
                  start_blend=0.2, th=(.3, .3), MAX_NUM_WORDS=77, device=None, dtype=None):
         alpha_layers = torch.zeros(len(prompts), 1, 1, 1, 1, MAX_NUM_WORDS)
@@ -94,7 +155,7 @@ class SpatialReplace(EmptyControl):
 
 class AttentionControl(abc.ABC):
 
-    def step_callback(self, x_t):
+    def step_callback(self, i, t, x_t):
         return x_t
 
     def between_steps(self):
@@ -170,7 +231,8 @@ class AttentionStore(AttentionControl):
 
 class AttentionControlEdit(AttentionStore, abc.ABC):
 
-    def step_callback(self, x_t):
+    # i and t not used, this is just so we can plug it into the callback method of standard SD pipeline
+    def step_callback(self, i, t, x_t):
         if self.local_blend is not None:
             x_t = self.local_blend(x_t, self.attention_store)
         return x_t
@@ -190,19 +252,35 @@ class AttentionControlEdit(AttentionStore, abc.ABC):
     @abc.abstractmethod
     def replace_cross_attention(self, attn_base, att_replace):
         raise NotImplementedError
+    #
+    # def forward(self, attn, is_cross: bool, place_in_unet: str):
+    #     super(AttentionControlEdit, self).forward(attn, is_cross, place_in_unet)
+    #     if is_cross or (self.num_self_replace[0] <= self.cur_step < self.num_self_replace[1]):
+    #         h = attn.shape[0] // (self.batch_size)
+    #         attn = attn.reshape(self.batch_size, h, *attn.shape[1:])
+    #         attn_base, attn_replace = attn[0], attn[1:]
+    #         if is_cross:
+    #             alpha_words = self.cross_replace_alpha[self.cur_step]
+    #             attn_replace_new = self.replace_cross_attention(attn_base, attn_replace) * alpha_words + (
+    #                         1 - alpha_words) * attn_replace
+    #             attn[1:] = attn_replace_new
+    #         else:
+    #             attn[1:] = self.replace_self_attention(attn_base, attn_replace, place_in_unet)
+    #         attn = attn.reshape(self.batch_size * h, *attn.shape[2:])
+    #     return attn
 
     def forward(self, attn, is_cross: bool, place_in_unet: str):
         super(AttentionControlEdit, self).forward(attn, is_cross, place_in_unet)
-        if is_cross or (self.num_self_replace[0] <= self.cur_step < self.num_self_replace[1]):
+        if (self.num_self_replace[0] <= self.cur_step < self.num_self_replace[1]) or (self.num_cross_replace[0] <= self.cur_step < self.num_cross_replace[1]):
             h = attn.shape[0] // (self.batch_size)
             attn = attn.reshape(self.batch_size, h, *attn.shape[1:])
             attn_base, attn_replace = attn[0], attn[1:]
-            if is_cross:
+            if is_cross and (self.num_cross_replace[0] <= self.cur_step < self.num_cross_replace[1]):
                 alpha_words = self.cross_replace_alpha[self.cur_step]
                 attn_replace_new = self.replace_cross_attention(attn_base, attn_replace) * alpha_words + (
                             1 - alpha_words) * attn_replace
                 attn[1:] = attn_replace_new
-            else:
+            elif (self.num_self_replace[0] <= self.cur_step < self.num_self_replace[1]):
                 attn[1:] = self.replace_self_attention(attn_base, attn_replace, place_in_unet)
             attn = attn.reshape(self.batch_size * h, *attn.shape[2:])
         return attn
@@ -218,6 +296,9 @@ class AttentionControlEdit(AttentionStore, abc.ABC):
         if type(self_replace_steps) is float:
             self_replace_steps = 0, self_replace_steps
         self.num_self_replace = int(num_steps * self_replace_steps[0]), int(num_steps * self_replace_steps[1])
+        if type(cross_replace_steps) is float:
+            cross_replace_steps = 0, self_replace_steps
+        self.num_cross_replace = int(num_steps * cross_replace_steps[0]), int(num_steps * cross_replace_steps[1])
         self.local_blend = local_blend
         self.threshold_res = threshold_res
         self.num_steps = num_steps
@@ -288,7 +369,7 @@ class AttentionJustReweight:
 
     def __call__(self, attn, is_cross: bool, place_in_unet: str):
 
-        #TODO reverse the range of steps, we want it so that beginning steps follow original prompt, later are weighted
+        # reverse the range of steps, we want it so that beginning steps follow original prompt, later are weighted
         if self.cur_att_layer >= self.num_uncond_att_layers and is_cross and self.cur_step > self.cross_replace_steps:
             h = attn.shape[0] // (self.batch_size)
             cond_attn = attn[h // 2:]
@@ -297,7 +378,7 @@ class AttentionJustReweight:
             old_mean = cond_attn.mean()
             cond_attn = cond_attn[:, :, :, :] * self.equalizer[:, None, None, :]
             new_mean = cond_attn.mean()
-            if self.normalize:
+            if self.normalize: #TODO maybe norm by the max, but only for the probs, to match softmax behavior
                 cond_attn = cond_attn / (new_mean/old_mean)
             cond_attn = cond_attn.reshape(self.batch_size * (h//2), *attn.shape[1:])
 

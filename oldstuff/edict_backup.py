@@ -44,8 +44,6 @@ def do_inversion(pipe,
                  init_image_strength=0.8,
                  guidance_scale=3,
                  run_baseline=False,
-                 height=512,
-                 width=512,
                  ):
     # compute latent pair (second one will be original latent if run_baseline=True)
     latents = coupled_stablediffusion(pipe,
@@ -55,9 +53,7 @@ def do_inversion(pipe,
                                       init_image_strength=init_image_strength,
                                       steps=steps, mix_weight=mix_weight,
                                       guidance_scale=guidance_scale,
-                                      run_baseline=run_baseline,
-                                      height=height,
-                                      width=width,)
+                                      run_baseline=run_baseline)
 
     return latents
 
@@ -139,7 +135,136 @@ def center_crop(im):
     return im
 
 
+#### P2P STUFF ####
+def init_attention_weights(pipe, weight_tuples):
+    tokens_length = pipe.tokenizer.model_max_length
+    weights = torch.ones(tokens_length)
+
+    for i, w in weight_tuples:
+        if i < tokens_length and i >= 0:
+            weights[i] = w
+
+    for name, module in pipe.unet.named_modules():
+        module_name = type(module).__name__
+        if module_name == "CrossAttention" and "attn2" in name:
+            module.last_attn_slice_weights = weights.to(pipe.device)
+        if module_name == "CrossAttention" and "attn1" in name:
+            module.last_attn_slice_weights = None
+
+
+def init_attention_edit(pipe, tokens, tokens_edit):
+    tokens_length = pipe.tokenizer.model_max_length
+    mask = torch.zeros(tokens_length)
+    indices_target = torch.arange(tokens_length, dtype=torch.long)
+    indices = torch.zeros(tokens_length, dtype=torch.long)
+
+    tokens = tokens.input_ids.numpy()[0]
+    tokens_edit = tokens_edit.input_ids.numpy()[0]
+
+    for name, a0, a1, b0, b1 in SequenceMatcher(None, tokens, tokens_edit).get_opcodes():
+        if b0 < tokens_length:
+            if name == "equal" or (name == "replace" and a1 - a0 == b1 - b0):
+                mask[b0:b1] = 1
+                indices[b0:b1] = indices_target[a0:a1]
+
+    for name, module in pipe.unet.named_modules():
+        module_name = type(module).__name__
+        if module_name == "CrossAttention" and "attn2" in name:
+            module.last_attn_slice_mask = mask.to(pipe.device)
+            module.last_attn_slice_indices = indices.to(pipe.device)
+        if module_name == "CrossAttention" and "attn1" in name:
+            module.last_attn_slice_mask = None
+            module.last_attn_slice_indices = None
+
+
+def init_attention_func(pipe):
+    def new_attention(self, query, key, value, sequence_length, dim, attention_mask):
+        batch_size_attention = query.shape[0]
+        hidden_states = torch.zeros(
+            (batch_size_attention, sequence_length, dim // self.heads), device=query.device, dtype=query.dtype
+        )
+        slice_size = self._slice_size if self._slice_size is not None else hidden_states.shape[0]
+        for i in range(hidden_states.shape[0] // slice_size):
+            start_idx = i * slice_size
+            end_idx = (i + 1) * slice_size
+            attn_slice = (
+                    torch.einsum("b i d, b j d -> b i j", query[start_idx:end_idx], key[start_idx:end_idx]) * self.scale
+            )
+            attn_slice = attn_slice.softmax(dim=-1)
+
+            if self.use_last_attn_slice:
+                if self.last_attn_slice_mask is not None:
+                    new_attn_slice = torch.index_select(self.last_attn_slice, -1, self.last_attn_slice_indices)
+                    attn_slice = attn_slice * (
+                            1 - self.last_attn_slice_mask) + new_attn_slice * self.last_attn_slice_mask
+                else:
+                    attn_slice = self.last_attn_slice
+
+                self.use_last_attn_slice = False
+
+            if self.save_last_attn_slice:
+                self.last_attn_slice = attn_slice
+                self.save_last_attn_slice = False
+
+            if self.use_last_attn_weights and self.last_attn_slice_weights is not None:
+                attn_slice = attn_slice * self.last_attn_slice_weights
+                self.use_last_attn_weights = False
+
+            attn_slice = torch.einsum("b i j, b j d -> b i d", attn_slice, value[start_idx:end_idx])
+
+            hidden_states[start_idx:end_idx] = attn_slice
+
+        # reshape hidden_states
+        hidden_states = self.reshape_batch_dim_to_heads(hidden_states)
+        return hidden_states
+
+    for name, module in pipe.unet.named_modules():
+        module_name = type(module).__name__
+        if module_name == "CrossAttention":
+            module.last_attn_slice = None
+            module.use_last_attn_slice = False
+            module.use_last_attn_weights = False
+            module.save_last_attn_slice = False
+            module._attention = new_attention.__get__(module, type(module))
+
+
+def use_last_tokens_attention(pipe, use=True):
+    for name, module in pipe.unet.named_modules():
+        module_name = type(module).__name__
+        if module_name == "CrossAttention" and "attn2" in name:
+            module.use_last_attn_slice = use
+
+
+def use_last_tokens_attention_weights(pipe, use=True):
+    for name, module in pipe.unet.named_modules():
+        module_name = type(module).__name__
+        if module_name == "CrossAttention" and "attn2" in name:
+            module.use_last_attn_weights = use
+
+
+def use_last_self_attention(pipe, use=True):
+    for name, module in pipe.unet.named_modules():
+        module_name = type(module).__name__
+        if module_name == "CrossAttention" and "attn1" in name:
+            module.use_last_attn_slice = use
+
+
+def save_last_tokens_attention(pipe, save=True):
+    for name, module in pipe.unet.named_modules():
+        module_name = type(module).__name__
+        if module_name == "CrossAttention" and "attn2" in name:
+            module.save_last_attn_slice = save
+
+
+def save_last_self_attention(pipe, save=True):
+    for name, module in pipe.unet.named_modules():
+        module_name = type(module).__name__
+        if module_name == "CrossAttention" and "attn1" in name:
+            module.save_last_attn_slice = save
+
+
 ####################################
+
 
 #### HELPER FUNCTIONS FOR OUR METHOD #####
 
@@ -281,6 +406,11 @@ def coupled_stablediffusion(pipe,
                             prompt="",
                             prompt_edit=None,
                             null_prompt='',
+                            prompt_edit_token_weights=[],
+                            prompt_edit_tokens_start=0.0,
+                            prompt_edit_tokens_end=1.0,
+                            prompt_edit_spatial_start=0.0,
+                            prompt_edit_spatial_end=1.0,
                             guidance_scale=7.0,
                             steps=50,
                             width=512,
@@ -369,6 +499,20 @@ def coupled_stablediffusion(pipe,
                                         return_overflowing_tokens=True)
     embedding_conditional = pipe.text_encoder(tokens_conditional.input_ids.to(pipe.device)).last_hidden_state
 
+    # Process prompt editing (if running Prompt-to-Prompt)
+    if prompt_edit is not None:
+        tokens_conditional_edit = pipe.tokenizer(prompt_edit, padding="max_length",
+                                                 max_length=pipe.tokenizer.model_max_length,
+                                                 truncation=True, return_tensors="pt",
+                                                 return_overflowing_tokens=True)
+        embedding_conditional_edit = pipe.text_encoder(
+            tokens_conditional_edit.input_ids.to(pipe.device)).last_hidden_state
+
+        init_attention_edit(pipe, tokens_conditional, tokens_conditional_edit)
+
+    init_attention_func(pipe)
+    init_attention_weights(pipe, prompt_edit_token_weights)
+
     timesteps = schedulers[0].timesteps[t_limit:]
     if reverse: timesteps = timesteps.flip(0)
 
@@ -409,9 +553,31 @@ def coupled_stablediffusion(pipe,
             # Predict the unconditional noise residual
             noise_pred_uncond = pipe.unet(latent_model_input, t, encoder_hidden_states=embedding_unconditional).sample
 
+            # Prepare the Cross-Attention layers
+            if prompt_edit is not None:
+                save_last_tokens_attention(pipe)
+                save_last_self_attention(pipe)
+            else:
+                # Use weights on non-edited prompt when edit is None
+                use_last_tokens_attention_weights(pipe)
 
             # Predict the conditional noise residual and save the cross-attention layer activations
             noise_pred_cond = pipe.unet(latent_model_input, t, encoder_hidden_states=embedding_conditional).sample
+
+            # Edit the Cross-Attention layer activations
+            if prompt_edit is not None:
+                t_scale = t / schedulers[0].num_train_timesteps
+                if t_scale >= prompt_edit_tokens_start and t_scale <= prompt_edit_tokens_end:
+                    use_last_tokens_attention(pipe)
+                if t_scale >= prompt_edit_spatial_start and t_scale <= prompt_edit_spatial_end:
+                    use_last_self_attention(pipe)
+
+                # Use weights on edited prompt
+                use_last_tokens_attention_weights(pipe)
+
+                # Predict the edited conditional noise residual using the cross-attention masks
+                noise_pred_cond = pipe.unet(latent_model_input, t,
+                                            encoder_hidden_states=embedding_conditional_edit).sample
 
             # Perform guidance
             noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_cond - noise_pred_uncond)
