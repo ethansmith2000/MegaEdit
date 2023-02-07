@@ -406,15 +406,19 @@ def coupled_stablediffusion(pipe,
             latent_model_input = latent_pair[latent_j]
             latent_base = latent_pair[latent_i]
 
-            # Predict the unconditional noise residual
-            noise_pred_uncond = pipe.unet(latent_model_input, t, encoder_hidden_states=embedding_unconditional).sample
-
-
             # Predict the conditional noise residual and save the cross-attention layer activations
             noise_pred_cond = pipe.unet(latent_model_input, t, encoder_hidden_states=embedding_conditional).sample
 
-            # Perform guidance
-            noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_cond - noise_pred_uncond)
+            if guidance_scale > 1:
+                # Predict the unconditional noise residual
+                noise_pred_uncond = pipe.unet(latent_model_input, t,
+                                              encoder_hidden_states=embedding_unconditional).sample
+
+
+                # Perform guidance
+                noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_cond - noise_pred_uncond)
+            else:
+                noise_pred = noise_pred_cond
 
             step_call = reverse_step if reverse else forward_step
             new_latent = step_call(schedulers[latent_i],

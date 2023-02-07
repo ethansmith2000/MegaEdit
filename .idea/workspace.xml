@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="combined controller works">
+    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="all functioning, maybe silent bugs though?">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/p2p/prompt2prompt.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/prompt2prompt.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/p2p/feat_share.py" beforeDir="false" afterPath="$PROJECT_DIR$/oldstuff/feat_share.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pipeline_stable_diffusion.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -91,7 +92,14 @@
       <option name="project" value="LOCAL" />
       <updated>1675718086926</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="all functioning, maybe silent bugs though?">
+      <created>1675719771266</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1675719771266</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -110,6 +118,7 @@
     <MESSAGE value="alls in a good place" />
     <MESSAGE value="updates" />
     <MESSAGE value="combined controller works" />
-    <option name="LAST_COMMIT_MESSAGE" value="combined controller works" />
+    <MESSAGE value="all functioning, maybe silent bugs though?" />
+    <option name="LAST_COMMIT_MESSAGE" value="all functioning, maybe silent bugs though?" />
   </component>
 </project>
