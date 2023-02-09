@@ -4,11 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="spare us some time with edict if we're inverting w/o cfg">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/p2p/edict.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/edict.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/p2p/prompt2prompt.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/prompt2prompt.py" afterDir="false" />
-    </list>
+    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="begin inversion from halfway point" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -106,7 +102,14 @@
       <option name="project" value="LOCAL" />
       <updated>1675758855923</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="begin inversion from halfway point">
+      <created>1675921274919</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1675921274919</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -127,6 +130,7 @@
     <MESSAGE value="combined controller works" />
     <MESSAGE value="all functioning, maybe silent bugs though?" />
     <MESSAGE value="spare us some time with edict if we're inverting w/o cfg" />
-    <option name="LAST_COMMIT_MESSAGE" value="spare us some time with edict if we're inverting w/o cfg" />
+    <MESSAGE value="begin inversion from halfway point" />
+    <option name="LAST_COMMIT_MESSAGE" value="begin inversion from halfway point" />
   </component>
 </project>
