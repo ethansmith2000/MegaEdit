@@ -21,6 +21,11 @@ from IPython.display import display
 from tqdm.notebook import tqdm
 import torch.nn.functional as F
 
+def get_schedule(start, end, start_buffer, end_buffer, num_steps):
+    schedule = np.linspace(start, end, num_steps)
+    schedule[:start_buffer] = start
+    schedule[-end_buffer:] = end
+    return schedule.tolist()
 
 def register_attention_control(model, controller, res_skip_layers=3):
     def ca_forward(self, place_in_unet, controller):
