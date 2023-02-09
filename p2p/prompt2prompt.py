@@ -336,9 +336,12 @@ class AttentionRefine(AttentionControlEdit):
         return attn_replace
 
     def __init__(self, prompts, num_steps: int, tokenizer, cross_replace_steps: float, self_replace_steps: float,
-                 local_blend: Optional[LocalBlend] = None, device=None, dtype=None, threshold_res=32, conv_replace_steps=0.3):
+                 local_blend: Optional[LocalBlend] = None, device=None, dtype=None, threshold_res=32, conv_replace_steps=0.3,
+                 conv_mix_schedule=None,self_attn_mix_schedule=None, cross_attn_mix_schedule=None):
         super(AttentionRefine, self).__init__(prompts, num_steps, tokenizer, cross_replace_steps, self_replace_steps,
-                                              local_blend, device=device, dtype=dtype, threshold_res=threshold_res, conv_replace_steps=conv_replace_steps)
+                                              local_blend, device=device, dtype=dtype,
+                                              threshold_res=threshold_res, conv_replace_steps=conv_replace_steps, conv_mix_schedule=conv_mix_schedule,
+                                 self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule)
         self.mapper, alphas = seq_aligner.get_refinement_mapper(prompts, tokenizer)
         self.mapper, alphas = self.mapper.to(device), alphas
         self.alphas = alphas.reshape(alphas.shape[0], 1, 1, alphas.shape[1]).to(device).to(dtype)
@@ -356,16 +359,21 @@ class AttentionReweight(AttentionControlEdit):
 
     def __init__(self, prompts, num_steps: int, tokenizer, cross_replace_steps: float, self_replace_steps: float,
                  equalizer, local_blend: Optional[LocalBlend] = None, controller: Optional[AttentionControlEdit] = None,
-                 device=None, dtype=None, threshold_res=32, conv_replace_steps=0.3):
+                 device=None, dtype=None, threshold_res=32, conv_replace_steps=0.3, conv_mix_schedule=None,
+                                 self_attn_mix_schedule=None, cross_attn_mix_schedule=None):
         super(AttentionReweight, self).__init__(prompts, num_steps, tokenizer, cross_replace_steps, self_replace_steps,
-                                                local_blend, device=device, dtype=dtype, threshold_res=threshold_res, conv_replace_steps=conv_replace_steps)
+                                                local_blend, device=device, dtype=dtype,
+                                                threshold_res=threshold_res, conv_replace_steps=conv_replace_steps,
+                                                conv_mix_schedule=conv_mix_schedule, self_attn_mix_schedule=self_attn_mix_schedule,
+                                                cross_attn_mix_schedule=cross_attn_mix_schedule)
         self.equalizer = equalizer.to(device).to(dtype)
         self.prev_controller = controller
 
 
 def make_controller(prompts, tokenizer, NUM_DDIM_STEPS, cross_replace_steps: Dict[str, float],
                     self_replace_steps: float, blend_words=None, substruct_words=None, start_blend=0.2, th=(.3, .3),
-                    device=None, dtype=None, equalizer=None, conv_replace_steps=0.3, threshold_res=32) -> AttentionControlEdit:
+                    device=None, dtype=None, equalizer=None, conv_replace_steps=0.3, threshold_res=32,
+                    conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None) -> AttentionControlEdit:
     if blend_words is None:
         lb = None
     else:
@@ -376,11 +384,15 @@ def make_controller(prompts, tokenizer, NUM_DDIM_STEPS, cross_replace_steps: Dic
     #                                   self_replace_steps=self_replace_steps, local_blend=lb, device=device, dtype=dtype)
     # else:
     controller = AttentionRefine(prompts, NUM_DDIM_STEPS, tokenizer, cross_replace_steps=cross_replace_steps,
-                                 self_replace_steps=self_replace_steps, local_blend=lb, device=device, dtype=dtype, conv_replace_steps=conv_replace_steps, threshold_res=threshold_res)
+                                 self_replace_steps=self_replace_steps, local_blend=lb, device=device, dtype=dtype,
+                                 conv_replace_steps=conv_replace_steps, threshold_res=threshold_res, conv_mix_schedule=conv_mix_schedule,
+                                 self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule)
     if equalizer is not None:
         controller = AttentionReweight(prompts, NUM_DDIM_STEPS, tokenizer, cross_replace_steps=cross_replace_steps,
                                        self_replace_steps=self_replace_steps, equalizer=equalizer, local_blend=lb,
-                                       controller=controller, device=device, dtype=dtype, conv_replace_steps=conv_replace_steps, threshold_res=threshold_res)
+                                       controller=controller, device=device, dtype=dtype, conv_replace_steps=conv_replace_steps,
+                                       threshold_res=threshold_res, conv_mix_schedule=conv_mix_schedule,
+                                 self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule)
     return controller
 
 

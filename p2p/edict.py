@@ -244,6 +244,16 @@ def prep_image_for_return(image):
     image = Image.fromarray(image)
     return image
 
+def get_timesteps(scheduler, num_inference_steps, begin=0.0, end=1.0, device="cuda"):
+    # get the original timestep using init_timestep
+    init_timestep = min(int(num_inference_steps * begin), num_inference_steps)
+    end_timestep = min(int(num_inference_steps * end), num_inference_steps)
+
+    t_start = max(num_inference_steps - init_timestep, 0)
+    t_end = max(num_inference_steps - end_timestep, 0)
+    timesteps = scheduler.timesteps[t_end:t_start]
+
+    return timesteps, num_inference_steps - t_start
 
 def image_to_latent(pipe, im, width, height):
     if isinstance(im, torch.Tensor):
@@ -283,10 +293,11 @@ def coupled_stablediffusion(pipe,
                             null_prompt='',
                             guidance_scale=7.0,
                             steps=50,
+                            begin_noise=0.0,
+                            end_noise=1.0,
                             width=512,
                             height=512,
                             init_image=None,
-                            init_image_strength=1.0,
                             run_baseline=False,
                             use_lms=False,
                             leapfrog_steps=True,
@@ -301,6 +312,22 @@ def coupled_stablediffusion(pipe,
     width = width - width % 64
     height = height - height % 64
 
+    # Set inference timesteps to scheduler
+    schedulers = []
+    for i in range(2):
+        # num_raw_timesteps = max(1000, steps)
+        scheduler = DDIMScheduler(beta_start=0.00085, beta_end=0.012,
+                                  beta_schedule=beta_schedule,
+                                  num_train_timesteps=1000,
+                                  clip_sample=False,
+                                  set_alpha_to_one=False)
+        scheduler.set_timesteps(steps)
+        schedulers.append(scheduler)
+
+    # end specifies the noise level at end of forward diffusion, begin is where we start
+    timesteps, num_inference_steps = get_timesteps(schedulers[0], steps, begin=begin_noise, end=end_noise)
+    latent_timestep = timesteps[:1].repeat(2)
+
     # Preprocess image if it exists (img2img)
     if init_image is not None:
         assert reverse  # want to be performing deterministic noising
@@ -312,8 +339,12 @@ def coupled_stablediffusion(pipe,
                 init_latent = [image_to_latent(pipe, im, width, height) for im in init_image]
         else:
             init_latent = image_to_latent(pipe, init_image, width, height)
+            # add noise
+            shape = init_latent.shape
+            noise = torch.randn(*shape)
+            init_latent = schedulers[0].add_noise(init_latent, noise, latent_timestep)
         # this is t_start for forward, t_end for reverse
-        t_limit = steps - int(steps * init_image_strength)
+        t_limit = steps - int(steps * end_noise)
     else:
         assert not reverse, 'Need image to reverse from'
         init_latent = torch.zeros((1, pipe.unet.in_channels, height // 8, width // 8), device=pipe.device)
@@ -331,30 +362,12 @@ def coupled_stablediffusion(pipe,
                 latent = [l.clone() for l in fixed_starting_latent]
             else:
                 latent = fixed_starting_latent.clone()
-            t_limit = steps - int(steps * init_image_strength)
+            t_limit = steps - int(steps * end_noise)
     if isinstance(latent, list):  # initializing from pair of images
         latent_pair = latent
     else:  # initializing from noise
         latent_pair = [latent.clone(), latent.clone()]
 
-    # if steps == 0:
-    #     if init_image is not None:
-    #         return image_to_latent(init_image)
-    #     else:
-    #         image = vae.decode(latent.to(vae.dtype) / 0.18215).sample
-    #         return prep_image_for_return(image)
-
-    # Set inference timesteps to scheduler
-    schedulers = []
-    for i in range(2):
-        # num_raw_timesteps = max(1000, steps)
-        scheduler = DDIMScheduler(beta_start=0.00085, beta_end=0.012,
-                                  beta_schedule=beta_schedule,
-                                  num_train_timesteps=1000,
-                                  clip_sample=False,
-                                  set_alpha_to_one=False)
-        scheduler.set_timesteps(steps)
-        schedulers.append(scheduler)
 
     # CLIP Text Embeddings
     tokens_unconditional = pipe.tokenizer(null_prompt, padding="max_length",
@@ -369,7 +382,6 @@ def coupled_stablediffusion(pipe,
                                         return_overflowing_tokens=True)
     embedding_conditional = pipe.text_encoder(tokens_conditional.input_ids.to(pipe.device)).last_hidden_state
 
-    timesteps = schedulers[0].timesteps[t_limit:]
     if reverse: timesteps = timesteps.flip(0)
 
     for i, t in tqdm(enumerate(timesteps), total=len(timesteps)):
@@ -382,8 +394,12 @@ def coupled_stablediffusion(pipe,
             new_latents[0] = (new_latents[0].clone() - (1 - mix_weight) * new_latents[1].clone()) / mix_weight
             latent_pair = new_latents
 
+        if mix_weight == 1.0:
+            num_intermediate_steps = 1
+        else:
+            num_intermediate_steps = 2
         # alternate EDICT steps
-        for latent_i in range(2):
+        for latent_i in range(num_intermediate_steps):
             if run_baseline and latent_i == 1: continue  # just have one sequence for baseline
             # this modifies latent_pair[i] while using
             # latent_pair[(i+1)%2]

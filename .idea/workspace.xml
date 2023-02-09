@@ -4,10 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="all functioning, maybe silent bugs though?">
+    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="spare us some time with edict if we're inverting w/o cfg">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/p2p/feat_share.py" beforeDir="false" afterPath="$PROJECT_DIR$/oldstuff/feat_share.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pipeline_stable_diffusion.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/p2p/edict.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/edict.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/p2p/prompt2prompt.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/prompt2prompt.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -99,7 +99,14 @@
       <option name="project" value="LOCAL" />
       <updated>1675719771266</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="spare us some time with edict if we're inverting w/o cfg">
+      <created>1675758855923</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1675758855923</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -119,6 +126,7 @@
     <MESSAGE value="updates" />
     <MESSAGE value="combined controller works" />
     <MESSAGE value="all functioning, maybe silent bugs though?" />
-    <option name="LAST_COMMIT_MESSAGE" value="all functioning, maybe silent bugs though?" />
+    <MESSAGE value="spare us some time with edict if we're inverting w/o cfg" />
+    <option name="LAST_COMMIT_MESSAGE" value="spare us some time with edict if we're inverting w/o cfg" />
   </component>
 </project>
