@@ -21,7 +21,7 @@ from IPython.display import display
 from tqdm.notebook import tqdm
 import torch.nn.functional as F
 
-def get_schedule(start, end, start_buffer, end_buffer, num_steps):
+def get_schedule(start, end, num_steps, start_buffer=0, end_buffer=1):
     schedule = np.linspace(start, end, num_steps)
     schedule[:start_buffer] = start
     schedule[-end_buffer:] = end
