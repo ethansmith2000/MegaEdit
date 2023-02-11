@@ -339,9 +339,9 @@ class AttentionRefine(AttentionControlEdit):
     def replace_cross_attention(self, attn_base, att_replace):
         #TODO i dont entirely understand this indexing here
         attn_base_replace = attn_base[:, :, self.mapper].permute(2, 0, 1, 3)
-        attn_replace = attn_base_replace * self.alphas + att_replace * (1 - self.alphas)
+        attn_new_replace = attn_base_replace * self.alphas + att_replace * (1 - self.alphas)
         # attn_replace = attn_replace / attn_replace.sum(-1, keepdims=True)
-        return attn_replace
+        return attn_new_replace * self.cross_attn_mix_schedule[self.cur_step] + att_replace * (1 - self.cross_attn_mix_schedule[self.cur_step])
 
     def __init__(self, prompts, num_steps: int, tokenizer, cross_replace_steps: float, self_replace_steps: float,
                  local_blend: Optional[LocalBlend] = None, device=None, dtype=None, threshold_res=32, conv_replace_steps=0.3,

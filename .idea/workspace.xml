@@ -4,7 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="archive regular inversion" />
+    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="remove abs replace">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/p2p/prompt2prompt.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/prompt2prompt.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -116,7 +119,28 @@
       <option name="project" value="LOCAL" />
       <updated>1675921961413</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="mix schedule, other changes">
+      <created>1675982893006</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1675982893006</updated>
+    </task>
+    <task id="LOCAL-00011" summary="refactor schedule fn">
+      <created>1675983231311</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1675983231311</updated>
+    </task>
+    <task id="LOCAL-00012" summary="remove abs replace">
+      <created>1675984550047</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1675984550047</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -139,6 +163,9 @@
     <MESSAGE value="spare us some time with edict if we're inverting w/o cfg" />
     <MESSAGE value="begin inversion from halfway point" />
     <MESSAGE value="archive regular inversion" />
-    <option name="LAST_COMMIT_MESSAGE" value="archive regular inversion" />
+    <MESSAGE value="mix schedule, other changes" />
+    <MESSAGE value="refactor schedule fn" />
+    <MESSAGE value="remove abs replace" />
+    <option name="LAST_COMMIT_MESSAGE" value="remove abs replace" />
   </component>
 </project>
