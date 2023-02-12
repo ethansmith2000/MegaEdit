@@ -4,9 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="remove abs replace">
+    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="changes">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/p2p/prompt2prompt.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/prompt2prompt.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -140,7 +139,14 @@
       <option name="project" value="LOCAL" />
       <updated>1675984550047</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="changes">
+      <created>1676144808184</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1676144808184</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -166,6 +172,7 @@
     <MESSAGE value="mix schedule, other changes" />
     <MESSAGE value="refactor schedule fn" />
     <MESSAGE value="remove abs replace" />
-    <option name="LAST_COMMIT_MESSAGE" value="remove abs replace" />
+    <MESSAGE value="changes" />
+    <option name="LAST_COMMIT_MESSAGE" value="changes" />
   </component>
 </project>

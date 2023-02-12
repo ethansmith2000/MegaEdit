@@ -95,7 +95,7 @@ def register_attention_control(model, controller, res_skip_layers=3):
             attention_probs = attention_scores.softmax(dim=-1)
             attention_probs = controller(attention_probs, is_cross, place_in_unet)
             #TODO this could use more testing
-            coeff = 0.82
+            coeff = 1.0
             attention_probs = attention_probs * coeff + attention_mod_probs * (1-coeff)
 
             # cast back to the original dtype
