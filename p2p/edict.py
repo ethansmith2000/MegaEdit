@@ -391,46 +391,14 @@ def coupled_stablediffusion(pipe,
     embedding_conditional = pipe.text_encoder(tokens_conditional.input_ids.to(pipe.device)).last_hidden_state
 
     if reverse: timesteps = timesteps.flip(0)
-    print(timesteps)
+    if mix_weight == 1.0:
+        le_latent = latent_pair[0].clone()
 
     for i, t in tqdm(enumerate(timesteps), total=len(timesteps)):
         t_scale = t / schedulers[0].num_train_timesteps
 
-        if (reverse) and (not run_baseline):
-            # Reverse mixing layer
-            new_latents = [l.clone() for l in latent_pair]
-            new_latents[1] = (new_latents[1].clone() - (1 - mix_weight) * new_latents[0].clone()) / mix_weight
-            new_latents[0] = (new_latents[0].clone() - (1 - mix_weight) * new_latents[1].clone()) / mix_weight
-            latent_pair = new_latents
-
         if mix_weight == 1.0:
-            num_intermediate_steps = 1
-        else:
-            num_intermediate_steps = 2
-        # alternate EDICT steps
-        for latent_i in range(num_intermediate_steps):
-            if run_baseline and latent_i == 1: continue  # just have one sequence for baseline
-            # this modifies latent_pair[i] while using
-            # latent_pair[(i+1)%2]
-            if reverse and (not run_baseline):
-                if leapfrog_steps:
-                    # what i would be from going other way
-                    orig_i = len(timesteps) - (i + 1)
-                    offset = (orig_i + 1) % 2
-                    latent_i = (latent_i + offset) % 2
-                else:
-                    # Do 1 then 0
-                    latent_i = (latent_i + 1) % 2
-            else:
-                if leapfrog_steps:
-                    offset = i % 2
-                    latent_i = (latent_i + offset) % 2
-
-            latent_j = ((latent_i + 1) % 2) if not run_baseline else latent_i
-
-            latent_model_input = latent_pair[latent_j]
-            latent_base = latent_pair[latent_i]
-
+            latent_model_input = le_latent
             # Predict the conditional noise residual and save the cross-attention layer activations
             noise_pred_cond = pipe.unet(latent_model_input, t, encoder_hidden_states=embedding_conditional).sample
 
@@ -439,27 +407,82 @@ def coupled_stablediffusion(pipe,
                 noise_pred_uncond = pipe.unet(latent_model_input, t,
                                               encoder_hidden_states=embedding_unconditional).sample
 
-
                 # Perform guidance
                 noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_cond - noise_pred_uncond)
             else:
                 noise_pred = noise_pred_cond
 
             step_call = reverse_step if reverse else forward_step
-            new_latent = step_call(schedulers[latent_i],
+            le_latent = step_call(schedulers[0],
                                    noise_pred,
                                    t,
-                                   latent_base)  # .prev_sample
-            new_latent = new_latent.to(latent_base.dtype)
+                                   le_latent)  # .prev_sample
 
-            latent_pair[latent_i] = new_latent
 
-        if (not reverse) and (not run_baseline):
-            # Mixing layer (contraction) during generative process
-            new_latents = [l.clone() for l in latent_pair]
-            new_latents[0] = (mix_weight * new_latents[0] + (1 - mix_weight) * new_latents[1]).clone()
-            new_latents[1] = ((1 - mix_weight) * new_latents[0] + (mix_weight) * new_latents[1]).clone()
-            latent_pair = new_latents
+        else:
+            if (reverse) and (not run_baseline):
+                # Reverse mixing layer
+                new_latents = [l.clone() for l in latent_pair]
+                new_latents[1] = (new_latents[1].clone() - (1 - mix_weight) * new_latents[0].clone()) / mix_weight
+                new_latents[0] = (new_latents[0].clone() - (1 - mix_weight) * new_latents[1].clone()) / mix_weight
+                latent_pair = new_latents
+
+            # alternate EDICT steps
+            for latent_i in range(2):
+                if run_baseline and latent_i == 1: continue  # just have one sequence for baseline
+                # this modifies latent_pair[i] while using
+                # latent_pair[(i+1)%2]
+                if reverse and (not run_baseline):
+                    if leapfrog_steps:
+                        # what i would be from going other way
+                        orig_i = len(timesteps) - (i + 1)
+                        offset = (orig_i + 1) % 2
+                        latent_i = (latent_i + offset) % 2
+                    else:
+                        # Do 1 then 0
+                        latent_i = (latent_i + 1) % 2
+                else:
+                    if leapfrog_steps:
+                        offset = i % 2
+                        latent_i = (latent_i + offset) % 2
+
+                latent_j = ((latent_i + 1) % 2) if not run_baseline else latent_i
+
+                latent_model_input = latent_pair[latent_j]
+                latent_base = latent_pair[latent_i]
+
+                # Predict the conditional noise residual and save the cross-attention layer activations
+                noise_pred_cond = pipe.unet(latent_model_input, t, encoder_hidden_states=embedding_conditional).sample
+
+                if guidance_scale > 1:
+                    # Predict the unconditional noise residual
+                    noise_pred_uncond = pipe.unet(latent_model_input, t,
+                                                  encoder_hidden_states=embedding_unconditional).sample
+
+
+                    # Perform guidance
+                    noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_cond - noise_pred_uncond)
+                else:
+                    noise_pred = noise_pred_cond
+
+                step_call = reverse_step if reverse else forward_step
+                new_latent = step_call(schedulers[latent_i],
+                                       noise_pred,
+                                       t,
+                                       latent_base)  # .prev_sample
+                new_latent = new_latent.to(latent_base.dtype)
+
+                latent_pair[latent_i] = new_latent
+
+            if (not reverse) and (not run_baseline):
+                # Mixing layer (contraction) during generative process
+                new_latents = [l.clone() for l in latent_pair]
+                new_latents[0] = (mix_weight * new_latents[0] + (1 - mix_weight) * new_latents[1]).clone()
+                new_latents[1] = ((1 - mix_weight) * new_latents[0] + (mix_weight) * new_latents[1]).clone()
+                latent_pair = new_latents
+
+    if mix_weight == 1.0:
+        latent_pair = [le_latent.clone(), le_latent.clone()]
 
     # scale and decode the image latents with vae, can return latents instead of images
     if reverse or return_latents:

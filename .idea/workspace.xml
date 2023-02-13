@@ -4,9 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="adjust attn reweight coeff">
+    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="edict broke?">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/p2p/edict.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/edict.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/p2p/edict_broke.py" beforeDir="false" afterPath="$PROJECT_DIR$/oldstuff/edict_broke.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/p2p/prompt2prompt.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/prompt2prompt.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/p2p/ptp_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/ptp_utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -32,13 +35,14 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/ethan.smith/Desktop/leo_branches/edict + other/p2p&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "last_opened_file_path": "/Users/ethan.smith/Desktop/leo_branches/edict + other/p2p",
+    "two.files.diff.last.used.file": "/Users/ethan.smith/Desktop/leo_branches/edict + other/p2p/edict.py"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/p2p" />
@@ -154,7 +158,14 @@
       <option name="project" value="LOCAL" />
       <updated>1676237167139</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="edict broke?">
+      <created>1676239943287</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1676239943287</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -182,6 +193,7 @@
     <MESSAGE value="remove abs replace" />
     <MESSAGE value="changes" />
     <MESSAGE value="adjust attn reweight coeff" />
-    <option name="LAST_COMMIT_MESSAGE" value="adjust attn reweight coeff" />
+    <MESSAGE value="edict broke?" />
+    <option name="LAST_COMMIT_MESSAGE" value="edict broke?" />
   </component>
 </project>

@@ -391,7 +391,6 @@ def coupled_stablediffusion(pipe,
     embedding_conditional = pipe.text_encoder(tokens_conditional.input_ids.to(pipe.device)).last_hidden_state
 
     if reverse: timesteps = timesteps.flip(0)
-    print(timesteps)
 
     for i, t in tqdm(enumerate(timesteps), total=len(timesteps)):
         t_scale = t / schedulers[0].num_train_timesteps

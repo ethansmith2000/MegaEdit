@@ -21,11 +21,12 @@ from IPython.display import display
 from tqdm.notebook import tqdm
 import torch.nn.functional as F
 
-def get_schedule(start, end, num_steps, start_buffer=0, end_buffer=1):
-    schedule = np.linspace(start, end, num_steps)
-    schedule[:start_buffer] = start
-    schedule[-end_buffer:] = end
-    return schedule.tolist()
+def get_schedule(num_steps, start, end, start_buffer=0, start_buffer_value=None):
+    if start_buffer_value is None:
+        start_buffer_value = start
+    schedule = np.linspace(start, end, num_steps - start_buffer).tolist()
+    schedule = [start_buffer_value] * start_buffer + schedule
+    return schedule
 
 def register_attention_control(model, controller, res_skip_layers=3):
     def ca_forward(self, place_in_unet, controller):
@@ -279,7 +280,7 @@ def register_attention_control(model, controller, res_skip_layers=3):
 
     if controller.__class__.__name__ != 'AttentionJustReweight':
         res_count = find_res(model.unet.up_blocks)
-        controller.num_res_layers = sum(res_count)
+        controller.num_conv_layers = sum(res_count)
 
 
 def get_word_inds(text: str, word_place: int, tokenizer):

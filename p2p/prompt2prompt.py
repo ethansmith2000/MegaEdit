@@ -10,6 +10,7 @@ import p2p.seq_aligner as seq_aligner
 import shutil
 from torch.optim.adam import Adam
 from PIL import Image
+from p2p.ptp_utils import get_schedule
 
 # class EthanBlend:
 #
@@ -85,6 +86,7 @@ class LocalBlend:
         mask = mask.gt(self.th[1 - int(use_pool)])
         mask = mask[:1] + mask
         return mask
+
 
     def __call__(self, x_t, attention_store, MAX_NUM_WORDS=77):
         self.counter += 1
@@ -180,6 +182,8 @@ class AttentionControl(abc.ABC):
                 thing[~mask] = (thing[~mask] * (1 - self.conv_mix_schedule[self.cur_step]) + (thing[mask] * self.conv_mix_schedule[self.cur_step]))
 
             self.cur_conv_layer += 1
+            if self.cur_conv_layer == self.num_conv_layers:
+                self.cur_conv_layer = 0
 
         return thing
 
@@ -188,7 +192,8 @@ class AttentionControl(abc.ABC):
         self.cur_att_layer = 0
         self.cur_conv_layer = 0
 
-    def __init__(self, conv_replace_steps, num_steps, batch_size, conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None):
+    def __init__(self, conv_replace_steps, num_steps, batch_size, conv_mix_schedule=None,
+                 self_attn_mix_schedule=None, cross_attn_mix_schedule=None, self_replace_steps=0.3, cross_replace_steps=0.7):
         self.cur_step = 0
         self.num_att_layers = -1
         self.cur_att_layer = 0
@@ -203,10 +208,18 @@ class AttentionControl(abc.ABC):
 
         if conv_mix_schedule is None:
             conv_mix_schedule = [1] * (num_steps + 1)
+        else:
+            conv_mix_schedule = get_schedule(int(num_steps * conv_replace_steps), **conv_mix_schedule) + [0] * (num_steps - int(num_steps * conv_replace_steps) + 1)
+
         if self_attn_mix_schedule is None:
             self_attn_mix_schedule = [1] * (num_steps + 1)
+        else:
+            self_attn_mix_schedule = get_schedule(int(num_steps * self_replace_steps), **self_attn_mix_schedule) + [0] * (num_steps - int(num_steps * self_replace_steps) + 1)
+
         if cross_attn_mix_schedule is None:
             cross_attn_mix_schedule = [1] * (num_steps + 1)
+        else:
+            cross_attn_mix_schedule = get_schedule(int(num_steps * cross_replace_steps), **cross_attn_mix_schedule) + [0] * (num_steps - int(num_steps * cross_replace_steps) + 1)
 
         self.conv_mix_schedule = conv_mix_schedule
         self.self_attn_mix_schedule = self_attn_mix_schedule
@@ -245,9 +258,11 @@ class AttentionStore(AttentionControl):
         self.step_store = self.get_empty_store()
         self.attention_store = {}
 
-    def __init__(self, conv_replace_steps, num_steps, batch_size, conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None):
+    def __init__(self, conv_replace_steps, num_steps, batch_size, conv_mix_schedule=None, self_attn_mix_schedule=None,
+                 cross_attn_mix_schedule=None, self_replace_steps=0.3, cross_replace_steps=0.7):
         super(AttentionStore, self).__init__(conv_replace_steps, num_steps, batch_size, conv_mix_schedule=conv_mix_schedule,
-                                 self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule)
+                                 self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule,
+                                             self_replace_steps=self_replace_steps, cross_replace_steps=cross_replace_steps)
         self.step_store = self.get_empty_store()
         self.attention_store = {}
 
@@ -319,7 +334,7 @@ class AttentionControlEdit(AttentionStore, abc.ABC):
                  local_blend: Optional[LocalBlend], device=None, dtype=None, threshold_res=32, conv_replace_steps=0.3,
                  conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None):
         super(AttentionControlEdit, self).__init__(conv_replace_steps, num_steps, batch_size=len(prompts), conv_mix_schedule=conv_mix_schedule,
-                                 self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule)
+                                 self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule, self_replace_steps=self_replace_steps, cross_replace_steps=cross_replace_steps)
         self.batch_size = len(prompts)
         self.cross_replace_alpha = ptp_utils.get_time_words_attention_alpha(prompts, num_steps, cross_replace_steps,
                                                                             tokenizer).to(device).to(dtype)
