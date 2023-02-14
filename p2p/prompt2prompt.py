@@ -394,13 +394,13 @@ class AttentionReweight(AttentionControlEdit):
 
 
 def make_controller(prompts, tokenizer, NUM_DDIM_STEPS, cross_replace_steps: Dict[str, float],
-                    self_replace_steps: float, blend_words=None, substruct_words=None, start_blend=0.2, th=(.3, .3),
+                    self_replace_steps: float, blend_words=None, subtract_words=None, start_blend=0.2, th=(.3, .3),
                     device=None, dtype=None, equalizer=None, conv_replace_steps=0.3, threshold_res=32,
                     conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None) -> AttentionControlEdit:
     if blend_words is None:
         lb = None
     else:
-        lb = LocalBlend(prompts, blend_words, tokenizer, NUM_DDIM_STEPS, subtract_words=substruct_words,
+        lb = LocalBlend(prompts, blend_words, tokenizer, NUM_DDIM_STEPS, subtract_words=subtract_words,
                         start_blend=start_blend, th=th, device=device, dtype=dtype)
     # if is_replace_controller:
     #     controller = AttentionReplace(prompts, NUM_DDIM_STEPS, tokenizer, cross_replace_steps=cross_replace_steps,

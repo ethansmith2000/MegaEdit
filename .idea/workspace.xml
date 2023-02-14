@@ -4,12 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="edict broke?">
+    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="blend and other fixes">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/p2p/edict.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/edict.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/p2p/edict_broke.py" beforeDir="false" afterPath="$PROJECT_DIR$/oldstuff/edict_broke.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/p2p/prompt2prompt.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/prompt2prompt.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/p2p/ptp_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/ptp_utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -165,7 +161,14 @@
       <option name="project" value="LOCAL" />
       <updated>1676239943287</updated>
     </task>
-    <option name="localTasksCounter" value="16" />
+    <task id="LOCAL-00016" summary="blend and other fixes">
+      <created>1676248256572</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1676248256572</updated>
+    </task>
+    <option name="localTasksCounter" value="17" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -194,6 +197,7 @@
     <MESSAGE value="changes" />
     <MESSAGE value="adjust attn reweight coeff" />
     <MESSAGE value="edict broke?" />
-    <option name="LAST_COMMIT_MESSAGE" value="edict broke?" />
+    <MESSAGE value="blend and other fixes" />
+    <option name="LAST_COMMIT_MESSAGE" value="blend and other fixes" />
   </component>
 </project>
