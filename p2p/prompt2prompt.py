@@ -281,7 +281,7 @@ class AttentionControlEdit(AttentionStore, abc.ABC):
                  local_blend: Optional[LocalBlend], device=None, dtype=None, threshold_res=32, conv_replace_steps=0.3,
                  conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None):
         super(AttentionControlEdit, self).__init__(conv_replace_steps, num_steps, batch_size=len(prompts), conv_mix_schedule=conv_mix_schedule,
-                                 self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule, self_replace_steps=self_replace_steps, cross_replace_steps=cross_replace_steps)
+                                 self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule, self_replace_steps=self_replace_steps, cross_replace_steps=(1-cross_replace_steps))
         self.batch_size = len(prompts)
         self.cross_replace_alpha = ptp_utils.get_time_words_attention_alpha(prompts, num_steps, cross_replace_steps,
                                                                             tokenizer).to(device).to(dtype)
