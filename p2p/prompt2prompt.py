@@ -35,7 +35,7 @@ class LocalBlend:
         if self.counter > self.start_blend:
 
             maps = attention_store["down_cross"][2:4] + attention_store["up_cross"][:3]
-            maps = [item.reshape(self.alpha_layers.shape[0], -1, 1, 16, 16, MAX_NUM_WORDS) for item in maps]
+            maps = [item.reshape(self.alpha_layers.shape[0], -1, 1, self.image_size_lb//4, self.image_size_lb//4, MAX_NUM_WORDS) for item in maps]
             maps = torch.cat(maps, dim=1)
             if self.invert_mask:
                 mask = ~self.get_mask(x_t, maps, self.alpha_layers, self.max_pool)
@@ -50,7 +50,7 @@ class LocalBlend:
 
     # th is threshold for mask
     def __init__(self, prompts: List[str], words: [List[List[str]]], tokenizer, NUM_DDIM_STEPS, subtract_words=None,
-                 start_blend=0.2, th=(.3, .3), MAX_NUM_WORDS=77, device=None, dtype=None, invert_mask=False, max_pool=True):
+                 start_blend=0.2, th=(.3, .3), MAX_NUM_WORDS=77, device=None, dtype=None, invert_mask=False, max_pool=True, image_size=512):
         alpha_layers = torch.zeros(len(prompts), 1, 1, 1, 1, MAX_NUM_WORDS)
         for i, (prompt, words_) in enumerate(zip(prompts, words)):
             if type(words_) is str:
@@ -76,6 +76,7 @@ class LocalBlend:
         self.th = th
         self.invert_mask= invert_mask
         self.max_pool = max_pool
+        self.image_size_lb = image_size//8
 
 
 class EmptyControl:
@@ -181,7 +182,7 @@ class AttentionStore(AttentionControl):
         #figure out size of the image by sqrt of the largest attn
         if attn.shape[1] ** 0.5 > self.image_size:
             self.image_size = int(attn.shape[1] ** 0.5)
-        if attn.shape[1] <= self.image_size ** 2 and is_cross:  # avoid memory overhead
+        if attn.shape[1] <= (self.image_size ** 2)/2 and is_cross:  # avoid memory overhead
             self.step_store[key].append(attn)
         return attn
 
@@ -343,12 +344,12 @@ class AttentionReweight(AttentionControlEdit):
 def make_controller(prompts, tokenizer, NUM_DDIM_STEPS, cross_replace_steps: Dict[str, float],
                     self_replace_steps: float, blend_words=None, subtract_words=None, start_blend=0.2, th=(.3, .3),
                     device=None, dtype=None, equalizer=None, conv_replace_steps=0.3, threshold_res=32,
-                    conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None, invert_mask=False, max_pool=True) -> AttentionControlEdit:
+                    conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None, invert_mask=False, max_pool=True, image_size=512) -> AttentionControlEdit:
     if blend_words is None:
         lb = None
     else:
         lb = LocalBlend(prompts, blend_words, tokenizer, NUM_DDIM_STEPS, subtract_words=subtract_words,
-                        start_blend=start_blend, th=th, device=device, dtype=dtype, invert_mask=invert_mask, max_pool=max_pool)
+                        start_blend=start_blend, th=th, device=device, dtype=dtype, invert_mask=invert_mask, max_pool=max_pool, image_size=image_size)
     # if is_replace_controller:
     #     controller = AttentionReplace(prompts, NUM_DDIM_STEPS, tokenizer, cross_replace_steps=cross_replace_steps,
     #                                   self_replace_steps=self_replace_steps, local_blend=lb, device=device, dtype=dtype)
