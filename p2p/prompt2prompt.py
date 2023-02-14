@@ -235,7 +235,10 @@ class AttentionStore(AttentionControl):
 
     def forward(self, attn, is_cross: bool, place_in_unet: str):
         key = f"{place_in_unet}_{'cross' if is_cross else 'self'}"
-        if attn.shape[1] <= 32 ** 2:  # avoid memory overhead
+        #figure out size of the image by sqrt of the largest attn
+        if attn.shape[1] ** 0.5 > self.image_size:
+            self.image_size = int(attn.shape[1] ** 0.5)
+        if attn.shape[1] <= self.image_size ** 2 and is_cross:  # avoid memory overhead
             self.step_store[key].append(attn)
         return attn
 
@@ -265,6 +268,7 @@ class AttentionStore(AttentionControl):
                                              self_replace_steps=self_replace_steps, cross_replace_steps=cross_replace_steps)
         self.step_store = self.get_empty_store()
         self.attention_store = {}
+        self.image_size = 0
 
 
 class AttentionControlEdit(AttentionStore, abc.ABC):
@@ -396,12 +400,12 @@ class AttentionReweight(AttentionControlEdit):
 def make_controller(prompts, tokenizer, NUM_DDIM_STEPS, cross_replace_steps: Dict[str, float],
                     self_replace_steps: float, blend_words=None, subtract_words=None, start_blend=0.2, th=(.3, .3),
                     device=None, dtype=None, equalizer=None, conv_replace_steps=0.3, threshold_res=32,
-                    conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None) -> AttentionControlEdit:
+                    conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None, invert_mask=False) -> AttentionControlEdit:
     if blend_words is None:
         lb = None
     else:
         lb = LocalBlend(prompts, blend_words, tokenizer, NUM_DDIM_STEPS, subtract_words=subtract_words,
-                        start_blend=start_blend, th=th, device=device, dtype=dtype)
+                        start_blend=start_blend, th=th, device=device, dtype=dtype, invert_mask=invert_mask)
     # if is_replace_controller:
     #     controller = AttentionReplace(prompts, NUM_DDIM_STEPS, tokenizer, cross_replace_steps=cross_replace_steps,
     #                                   self_replace_steps=self_replace_steps, local_blend=lb, device=device, dtype=dtype)
@@ -485,33 +489,32 @@ def get_equalizer(text: str, tokenizer, word_select: Union[int, Tuple[int, ...]]
 #         self.mapper = seq_aligner.get_replacement_mapper(prompts, tokenizer).to(device).to(dtype)
 
 
-# def aggregate_attention(prompts, attention_store: AttentionStore, res: int, from_where: List[str], is_cross: bool, select: int):
-#     out = []
-#     attention_maps = attention_store.get_average_attention()
-#     num_pixels = res ** 2
-#     for location in from_where:
-#         for item in attention_maps[f"{location}_{'cross' if is_cross else 'self'}"]:
-#             if item.shape[1] == num_pixels:
-#                 cross_maps = item.reshape(len(prompts), -1, res, res, item.shape[-1])[select]
-#                 out.append(cross_maps)
-#     out = torch.cat(out, dim=0)
-#     out = out.sum(0) / out.shape[0]
-#     return out.cpu()
+def aggregate_attention(prompts, attention_store, res, location, is_cross, select):
+    out = []
+    attention_maps = attention_store.get_average_attention()
+    num_pixels = res ** 2
+    for item in attention_maps[f"{location}_{'cross' if is_cross else 'self'}"]:
+        if item.shape[1] == num_pixels:
+            cross_maps = item.reshape(len(prompts), -1, res, res, item.shape[-1])[select]
+            out.append(cross_maps)
+    out = torch.cat(out, dim=0)
+    out = out.sum(0) / out.shape[0]
+    return out.cpu()
 
-# def show_cross_attention(attention_store: AttentionStore, res: int, from_where: List[str], select: int = 0):
-#     tokens = tokenizer.encode(prompts[select])
-#     decoder = tokenizer.decode
-#     attention_maps = aggregate_attention(attention_store, res, from_where, True, select)
-#     images = []
-#     for i in range(len(tokens)):
-#         image = attention_maps[:, :, i]
-#         image = 255 * image / image.max()
-#         image = image.unsqueeze(-1).expand(*image.shape, 3)
-#         image = image.numpy().astype(np.uint8)
-#         image = np.array(Image.fromarray(image).resize((256, 256)))
-#         image = ptp_utils.text_under_image(image, decoder(int(tokens[i])))
-#         images.append(image)
-#     ptp_utils.view_images(np.stack(images, axis=0))
+def show_cross_attention(tokenizer, prompts, attention_store, res: int, from_where, select: int = 0):
+    tokens = tokenizer.encode(prompts[select])
+    decoder = tokenizer.decode
+    attention_maps = aggregate_attention(prompts, attention_store, res, from_where, True, select)
+    images = []
+    for i in range(len(tokens)):
+        image = attention_maps[:, :, i]
+        image = 255 * image / image.max()
+        image = image.unsqueeze(-1).expand(*image.shape, 3)
+        image = image.numpy().astype(np.uint8)
+        image = np.array(Image.fromarray(image).resize((256, 256)))
+        image = ptp_utils.text_under_image(image, decoder(int(tokens[i])))
+        images.append(image)
+    ptp_utils.view_images(np.stack(images, axis=0))
 #
 #
 # def show_self_attention_comp(attention_store: AttentionStore, res: int, from_where: List[str],
