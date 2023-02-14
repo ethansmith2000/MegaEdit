@@ -12,65 +12,6 @@ from torch.optim.adam import Adam
 from PIL import Image
 from p2p.ptp_utils import get_schedule
 
-# class EthanBlend:
-#
-#     def get_mask(self, x_t, maps, alpha, use_pool):
-#         k = 1
-#         maps = (maps * alpha).sum(-1).mean(1)
-#         if use_pool:
-#             maps = F.max_pool2d(maps, (k * 2 + 1, k * 2 + 1), (1, 1), padding=(k, k))
-#         mask = F.interpolate(maps, size=(x_t.shape[2:]))
-#         # TODO maybe use gaussian smoothing here?
-#         if True:
-#             pass
-#         mask = mask / mask.max(2, keepdims=True)[0].max(3, keepdims=True)[0]
-#         mask = mask.gt(self.th[1 - int(use_pool)])
-#         mask = mask[:1] + mask
-#         return mask
-#
-#     def __call__(self, x_t, attention_store, MAX_NUM_WORDS=77):
-#         self.counter += 1
-#         if self.counter > self.start_blend:
-#
-#             maps = attention_store["down_cross"][2:4] + attention_store["up_cross"][:3]
-#             maps = [item.reshape(self.alpha_layers.shape[0], -1, 1, 16, 16, MAX_NUM_WORDS) for item in maps]
-#             maps = torch.cat(maps, dim=1)
-#             mask = self.get_mask(x_t, maps, self.alpha_layers, True)
-#             if self.subtract_layers is not None:
-#                 maps_sub = ~self.get_mask(x_t, maps, self.subtract_layers, False)
-#                 mask = mask * maps_sub
-#             mask = mask.to(x_t.dtype)
-#             x_t = x_t[:1] + mask * (x_t - x_t[:1])
-#         return x_t
-#
-#     # th is threshold for mask
-#     def __init__(self, prompts: List[str], words: [List[List[str]]], tokenizer, NUM_DDIM_STEPS, subtract_words=None,
-#                  start_blend=0.2, th=(.3, .3), MAX_NUM_WORDS=77, device=None, dtype=None):
-#         alpha_layers = torch.zeros(len(prompts), 1, 1, 1, 1, MAX_NUM_WORDS)
-#         for i, (prompt, words_) in enumerate(zip(prompts, words)):
-#             if type(words_) is str:
-#                 words_ = [words_]
-#             for word in words_:
-#                 ind = ptp_utils.get_word_inds(prompt, word, tokenizer)
-#                 alpha_layers[i, :, :, :, :, ind] = 1
-#
-#         if subtract_words is not None:
-#             subtract_layers = torch.zeros(len(prompts), 1, 1, 1, 1, MAX_NUM_WORDS)
-#             for i, (prompt, words_) in enumerate(zip(prompts, subtract_words)):
-#                 if type(words_) is str:
-#                     words_ = [words_]
-#                 for word in words_:
-#                     ind = ptp_utils.get_word_inds(prompt, word, tokenizer)
-#                     subtract_layers[i, :, :, :, :, ind] = 1
-#             self.subtract_layers = subtract_layers.to(device).to(dtype)
-#         else:
-#             self.subtract_layers = None
-#         self.alpha_layers = alpha_layers.to(device).to(dtype)
-#         self.start_blend = int(start_blend * NUM_DDIM_STEPS)
-#         self.counter = 0
-#         self.th = th
-
-
 class LocalBlend:
 
     def get_mask(self, x_t, maps, alpha, use_pool):
@@ -84,7 +25,8 @@ class LocalBlend:
             pass
         mask = mask / mask.max(2, keepdims=True)[0].max(3, keepdims=True)[0]
         mask = mask.gt(self.th[1 - int(use_pool)])
-        mask = mask[:1] + mask
+        #mask = mask[:1] + mask[1:]
+        mask = mask[1:]
         return mask
 
 
@@ -96,19 +38,19 @@ class LocalBlend:
             maps = [item.reshape(self.alpha_layers.shape[0], -1, 1, 16, 16, MAX_NUM_WORDS) for item in maps]
             maps = torch.cat(maps, dim=1)
             if self.invert_mask:
-                mask = ~self.get_mask(x_t, maps, self.alpha_layers, True)
+                mask = ~self.get_mask(x_t, maps, self.alpha_layers, self.max_pool)
             else:
-                mask = self.get_mask(x_t, maps, self.alpha_layers, True)
+                mask = self.get_mask(x_t, maps, self.alpha_layers, self.max_pool)
             # if self.subtract_layers is not None:
             #     maps_sub = ~self.get_mask(x_t, maps, self.subtract_layers, False)
             #     mask = mask * maps_sub
             mask = mask.to(x_t.dtype)
-            x_t = x_t[:1] + mask * (x_t - x_t[:1])
+            x_t[1:] = x_t[:1] + mask * (x_t[1:] - x_t[:1])
         return x_t
 
     # th is threshold for mask
     def __init__(self, prompts: List[str], words: [List[List[str]]], tokenizer, NUM_DDIM_STEPS, subtract_words=None,
-                 start_blend=0.2, th=(.3, .3), MAX_NUM_WORDS=77, device=None, dtype=None, invert_mask=False):
+                 start_blend=0.2, th=(.3, .3), MAX_NUM_WORDS=77, device=None, dtype=None, invert_mask=False, max_pool=True):
         alpha_layers = torch.zeros(len(prompts), 1, 1, 1, 1, MAX_NUM_WORDS)
         for i, (prompt, words_) in enumerate(zip(prompts, words)):
             if type(words_) is str:
@@ -133,6 +75,7 @@ class LocalBlend:
         self.counter = 0
         self.th = th
         self.invert_mask= invert_mask
+        self.max_pool = max_pool
 
 
 class EmptyControl:
@@ -400,12 +343,12 @@ class AttentionReweight(AttentionControlEdit):
 def make_controller(prompts, tokenizer, NUM_DDIM_STEPS, cross_replace_steps: Dict[str, float],
                     self_replace_steps: float, blend_words=None, subtract_words=None, start_blend=0.2, th=(.3, .3),
                     device=None, dtype=None, equalizer=None, conv_replace_steps=0.3, threshold_res=32,
-                    conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None, invert_mask=False) -> AttentionControlEdit:
+                    conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None, invert_mask=False, max_pool=True) -> AttentionControlEdit:
     if blend_words is None:
         lb = None
     else:
         lb = LocalBlend(prompts, blend_words, tokenizer, NUM_DDIM_STEPS, subtract_words=subtract_words,
-                        start_blend=start_blend, th=th, device=device, dtype=dtype, invert_mask=invert_mask)
+                        start_blend=start_blend, th=th, device=device, dtype=dtype, invert_mask=invert_mask, max_pool=max_pool)
     # if is_replace_controller:
     #     controller = AttentionReplace(prompts, NUM_DDIM_STEPS, tokenizer, cross_replace_steps=cross_replace_steps,
     #                                   self_replace_steps=self_replace_steps, local_blend=lb, device=device, dtype=dtype)
