@@ -26,7 +26,7 @@ class LocalBlend:
         mask = mask / mask.max(2, keepdims=True)[0].max(3, keepdims=True)[0]
         mask = mask.gt(self.th[1 - int(use_pool)])
         #mask = mask[:1] + mask[1:]
-        mask = mask[1:]
+        mask = mask[:1]
         return mask
 
 
