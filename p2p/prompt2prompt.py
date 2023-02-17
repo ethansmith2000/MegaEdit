@@ -103,12 +103,19 @@ class AttentionControl(abc.ABC):
     def forward(self, attn, is_cross: bool, place_in_unet: str):
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def forward2(self, attn, is_cross: bool, place_in_unet: str):
+        raise NotImplementedError
+
     def __call__(self, thing, is_cross: bool, place_in_unet: str):
         # this is how we'll check if incoming feature is attn or conv features
         if thing.shape[0] > self.batch_size * 2:
             if self.cur_att_layer >= self.num_uncond_att_layers:
-                h = thing.shape[0]
-                thing[h // 2:] = self.forward(thing[h // 2:], is_cross, place_in_unet)
+                if self.use_uncond_attn:
+                    thing = self.forward2(thing, is_cross, place_in_unet)
+                else:
+                    h = thing.shape[0]
+                    thing[h // 2:] = self.forward(thing[h // 2:], is_cross, place_in_unet)
             self.cur_att_layer += 1
             if self.cur_att_layer == self.num_att_layers:
                 self.cur_att_layer = 0
@@ -137,7 +144,7 @@ class AttentionControl(abc.ABC):
         self.cur_conv_layer = 0
 
     def __init__(self, conv_replace_steps, num_steps, batch_size, conv_mix_schedule=None,
-                 self_attn_mix_schedule=None, cross_attn_mix_schedule=None, self_replace_steps=0.3, cross_replace_steps=0.7):
+                 self_attn_mix_schedule=None, cross_attn_mix_schedule=None, self_replace_steps=0.3, cross_replace_steps=0.7, use_uncond_attn=False):
         self.cur_step = 0
         self.num_att_layers = -1
         self.cur_att_layer = 0
@@ -168,6 +175,7 @@ class AttentionControl(abc.ABC):
         self.conv_mix_schedule = conv_mix_schedule
         self.self_attn_mix_schedule = self_attn_mix_schedule
         self.cross_attn_mix_schedule = cross_attn_mix_schedule
+        self.use_uncond_attn = use_uncond_attn
 
 
 class AttentionStore(AttentionControl):
@@ -185,6 +193,9 @@ class AttentionStore(AttentionControl):
         if attn.shape[1] <= (self.image_size ** 2)/2 and is_cross:  # avoid memory overhead
             self.step_store[key].append(attn)
         return attn
+
+    def forward2(self, attn, is_cross: bool, place_in_unet: str):
+        pass
 
     def between_steps(self):
         if len(self.attention_store) == 0:
@@ -206,10 +217,10 @@ class AttentionStore(AttentionControl):
         self.attention_store = {}
 
     def __init__(self, conv_replace_steps, num_steps, batch_size, conv_mix_schedule=None, self_attn_mix_schedule=None,
-                 cross_attn_mix_schedule=None, self_replace_steps=0.3, cross_replace_steps=0.7):
+                 cross_attn_mix_schedule=None, self_replace_steps=0.3, cross_replace_steps=0.7, use_uncond_attn=False):
         super(AttentionStore, self).__init__(conv_replace_steps, num_steps, batch_size, conv_mix_schedule=conv_mix_schedule,
                                  self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule,
-                                             self_replace_steps=self_replace_steps, cross_replace_steps=cross_replace_steps)
+                                             self_replace_steps=self_replace_steps, cross_replace_steps=cross_replace_steps, use_uncond_attn=use_uncond_attn)
         self.step_store = self.get_empty_store()
         self.attention_store = {}
         self.image_size = 0
@@ -260,6 +271,26 @@ class AttentionControlEdit(AttentionStore, abc.ABC):
             attn = attn.reshape(self.batch_size * h, *attn.shape[2:])
         return attn
 
+    def forward2(self, attn, is_cross: bool, place_in_unet: str):
+        super(AttentionControlEdit, self).forward(attn, is_cross, place_in_unet)
+        if is_cross or (self.num_self_replace[0] <= self.cur_step < self.num_self_replace[1]):
+            h = attn.shape[0] // (self.batch_size * 2)
+            attn = attn.reshape(self.batch_size * 2, h, *attn.shape[1:])
+            attn_base, attn_replace = attn[0:2], attn[2:4]
+            if is_cross:
+                attn_base, attn_replace = attn_base[0], attn_replace[1:]
+                alpha_words = self.cross_replace_alpha[self.cur_step]
+                attn_replace_new = self.replace_cross_attention(attn_base, attn_replace)
+                attn_replace_new = attn_replace_new * alpha_words + (1 - alpha_words) * attn_replace
+                attn[3:] = attn_replace_new
+            else:
+                if attn_replace.shape[2] <= self.threshold_res ** 2:
+                    mask = torch.tensor([1, 0, 1, 0], dtype=bool)
+                    attn[~mask] = (attn[~mask] * (1 - self.self_attn_mix_schedule[self.cur_step]) + (
+                                attn[mask] * self.self_attn_mix_schedule[self.cur_step]))
+            attn = attn.reshape(self.batch_size * h, *attn.shape[2:])
+        return attn
+
     # def forward(self, attn, is_cross: bool, place_in_unet: str):
     #     super(AttentionControlEdit, self).forward(attn, is_cross, place_in_unet)
     #     if (self.num_self_replace[0] <= self.cur_step < self.num_self_replace[1]) or (self.num_cross_replace[0] <= self.cur_step < self.num_cross_replace[1]):
@@ -280,9 +311,9 @@ class AttentionControlEdit(AttentionStore, abc.ABC):
                  cross_replace_steps: Union[float, Tuple[float, float], Dict[str, Tuple[float, float]]],
                  self_replace_steps: Union[float, Tuple[float, float]],
                  local_blend: Optional[LocalBlend], device=None, dtype=None, threshold_res=32, conv_replace_steps=0.3,
-                 conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None):
+                 conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None, use_uncond_attn=False):
         super(AttentionControlEdit, self).__init__(conv_replace_steps, num_steps, batch_size=len(prompts), conv_mix_schedule=conv_mix_schedule,
-                                 self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule, self_replace_steps=self_replace_steps, cross_replace_steps=(1-cross_replace_steps))
+                                 self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule, self_replace_steps=self_replace_steps, cross_replace_steps=(1-cross_replace_steps), use_uncond_attn=use_uncond_attn)
         self.batch_size = len(prompts)
         self.cross_replace_alpha = ptp_utils.get_time_words_attention_alpha(prompts, num_steps, cross_replace_steps,
                                                                             tokenizer).to(device).to(dtype)
@@ -308,11 +339,11 @@ class AttentionRefine(AttentionControlEdit):
 
     def __init__(self, prompts, num_steps: int, tokenizer, cross_replace_steps: float, self_replace_steps: float,
                  local_blend: Optional[LocalBlend] = None, device=None, dtype=None, threshold_res=32, conv_replace_steps=0.3,
-                 conv_mix_schedule=None,self_attn_mix_schedule=None, cross_attn_mix_schedule=None, absolute_replace=False):
+                 conv_mix_schedule=None,self_attn_mix_schedule=None, cross_attn_mix_schedule=None, absolute_replace=False, use_uncond_attn=False):
         super(AttentionRefine, self).__init__(prompts, num_steps, tokenizer, cross_replace_steps, self_replace_steps,
                                               local_blend, device=device, dtype=dtype,
                                               threshold_res=threshold_res, conv_replace_steps=conv_replace_steps, conv_mix_schedule=conv_mix_schedule,
-                                 self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule)
+                                 self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule, use_uncond_attn=use_uncond_attn)
         self.mapper, alphas = seq_aligner.get_refinement_mapper(prompts, tokenizer)
         self.mapper, alphas = self.mapper.to(device), alphas
         self.alphas = alphas.reshape(alphas.shape[0], 1, 1, alphas.shape[1]).to(device).to(dtype)
@@ -331,12 +362,12 @@ class AttentionReweight(AttentionControlEdit):
     def __init__(self, prompts, num_steps: int, tokenizer, cross_replace_steps: float, self_replace_steps: float,
                  equalizer, local_blend: Optional[LocalBlend] = None, controller: Optional[AttentionControlEdit] = None,
                  device=None, dtype=None, threshold_res=32, conv_replace_steps=0.3, conv_mix_schedule=None,
-                                 self_attn_mix_schedule=None, cross_attn_mix_schedule=None):
+                                 self_attn_mix_schedule=None, cross_attn_mix_schedule=None, use_uncond_attn=False):
         super(AttentionReweight, self).__init__(prompts, num_steps, tokenizer, cross_replace_steps, self_replace_steps,
                                                 local_blend, device=device, dtype=dtype,
                                                 threshold_res=threshold_res, conv_replace_steps=conv_replace_steps,
                                                 conv_mix_schedule=conv_mix_schedule, self_attn_mix_schedule=self_attn_mix_schedule,
-                                                cross_attn_mix_schedule=cross_attn_mix_schedule)
+                                                cross_attn_mix_schedule=cross_attn_mix_schedule, use_uncond_attn=use_uncond_attn)
         self.equalizer = equalizer.to(device).to(dtype)
         self.prev_controller = controller
 
@@ -344,7 +375,7 @@ class AttentionReweight(AttentionControlEdit):
 def make_controller(prompts, tokenizer, NUM_DDIM_STEPS, cross_replace_steps: Dict[str, float],
                     self_replace_steps: float, blend_words=None, subtract_words=None, start_blend=0.2, th=(.3, .3),
                     device=None, dtype=None, equalizer=None, conv_replace_steps=0.3, threshold_res=32,
-                    conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None, invert_mask=False, max_pool=True, image_size=512) -> AttentionControlEdit:
+                    conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None, invert_mask=False, max_pool=True, image_size=512, use_uncond_attn=False) -> AttentionControlEdit:
     if blend_words is None:
         lb = None
     else:
@@ -357,13 +388,13 @@ def make_controller(prompts, tokenizer, NUM_DDIM_STEPS, cross_replace_steps: Dic
     controller = AttentionRefine(prompts, NUM_DDIM_STEPS, tokenizer, cross_replace_steps=cross_replace_steps,
                                  self_replace_steps=self_replace_steps, local_blend=lb, device=device, dtype=dtype,
                                  conv_replace_steps=conv_replace_steps, threshold_res=threshold_res, conv_mix_schedule=conv_mix_schedule,
-                                 self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule)
+                                 self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule, use_uncond_attn=use_uncond_attn)
     if equalizer is not None:
         controller = AttentionReweight(prompts, NUM_DDIM_STEPS, tokenizer, cross_replace_steps=cross_replace_steps,
                                        self_replace_steps=self_replace_steps, equalizer=equalizer, local_blend=lb,
                                        controller=controller, device=device, dtype=dtype, conv_replace_steps=conv_replace_steps,
                                        threshold_res=threshold_res, conv_mix_schedule=conv_mix_schedule,
-                                 self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule)
+                                 self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule, use_uncond_attn=use_uncond_attn)
     return controller
 
 
