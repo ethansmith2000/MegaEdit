@@ -36,7 +36,7 @@ def register_attention_control(model, controller, res_skip_layers=3):
         else:
             to_out = self.to_out
 
-        def _attention_main(query, key, value, is_cross, attention_mask=None):
+        def _attention(query, key, value, is_cross, attention_mask=None):
             if self.upcast_attention:
                 query = query.float()
                 key = key.float()
@@ -68,42 +68,49 @@ def register_attention_control(model, controller, res_skip_layers=3):
             hidden_states = self.reshape_batch_dim_to_heads(hidden_states)
             return hidden_states
 
-        def _attention_just_weight(query, key, value, is_cross, attention_mask=None):
+        def _sliced_attention(self, query, key, value, sequence_length, dim, is_cross, attention_mask=None):
+            dtype = query.dtype
             if self.upcast_attention:
                 query = query.float()
                 key = key.float()
 
-            attention_scores = torch.baddbmm(
-                torch.empty(query.shape[0], query.shape[1], key.shape[1], dtype=query.dtype, device=query.device),
-                query,
-                key.transpose(-1, -2),
-                beta=0,
-                alpha=self.scale,
-            )
+            batch_size_attention = query.shape[0]
+            hidden_states = torch.zeros((batch_size_attention, sequence_length, dim // self.heads), device=query.device, dtype=query.dtype)
+            slice_size = self._slice_size if self._slice_size is not None else hidden_states.shape[0]
+            for i in range(hidden_states.shape[0] // slice_size):
+                start_idx = i * slice_size
+                end_idx = (i + 1) * slice_size
 
-            # take weighted sum of resulting probs modified attention scores and directly modified probs
-            attention_mod_scores = controller(attention_scores, is_cross, place_in_unet)
-            if self.upcast_softmax:
-                attention_mod_scores = attention_mod_scores.float()
-            attention_mod_probs = attention_mod_scores.softmax(dim=-1)
+                attn_slice_query = query[start_idx:end_idx]
+                attn_slice_key = key[start_idx:end_idx]
 
-            if attention_mask is not None:
-                attention_scores = attention_scores + attention_mask
+                if attention_mask is None:
+                    baddbmm_input = torch.empty(
+                        attn_slice_query.shape[0], attn_slice_query.shape[1], attn_slice_key.shape[1], dtype=query.dtype, device=query.device
+                    )
+                    beta = 0
+                else:
+                    baddbmm_input = attention_mask
+                    beta = 1
 
-            if self.upcast_softmax:
-                attention_scores = attention_scores.float()
+                attention_scores = torch.baddbmm(
+                    baddbmm_input,
+                    attn_slice_query,
+                    attn_slice_key.transpose(-1, -2),
+                    beta=beta,
+                    alpha=self.scale,
+                )
 
-            attention_probs = attention_scores.softmax(dim=-1)
-            attention_probs = controller(attention_probs, is_cross, place_in_unet)
-            #TODO this could use more testing
-            coeff = 1.0
-            attention_probs = attention_probs * coeff + attention_mod_probs * (1-coeff)
+                if self.upcast_softmax:
+                    attention_scores = attention_scores.float()
 
-            # cast back to the original dtype
-            attention_probs = attention_probs.to(value.dtype)
+                attention_probs = attention_scores.softmax(dim=-1)
+                attention_probs = attention_probs.to(dtype)
 
-            # compute attention output
-            hidden_states = torch.bmm(attention_probs, value)
+                attention_probs = controller(attention_probs, is_cross, place_in_unet)
+                attention_probs = torch.bmm(attention_probs, value[start_idx:end_idx])
+
+                hidden_states[start_idx:end_idx] = attention_probs
 
             # reshape hidden_states
             hidden_states = self.reshape_batch_dim_to_heads(hidden_states)
@@ -162,7 +169,7 @@ def register_attention_control(model, controller, res_skip_layers=3):
                 if self._slice_size is None or query.shape[0] // self._slice_size == 1:
                     hidden_states = self._attention(query, key, value, is_cross, attention_mask)
                 else:
-                    hidden_states = self._sliced_attention(query, key, value, sequence_length, dim, attention_mask)
+                    hidden_states = self._sliced_attention(query, key, value, sequence_length, dim, is_cross, attention_mask=attention_mask)
 
             # linear proj
             hidden_states = self.to_out[0](hidden_states)
@@ -171,17 +178,10 @@ def register_attention_control(model, controller, res_skip_layers=3):
             hidden_states = self.to_out[1](hidden_states)
             return hidden_states
 
-        if controller.__class__.__name__ == 'AttentionJustReweight':
-            return _attention_just_weight, forward
-        else:
-            return _attention_main, forward
+
+        return _sliced_attention, _attention, forward
 
     def res_forward(self):
-        # to_out = self.to_out
-        # if type(to_out) is torch.nn.modules.container.ModuleList:
-        #     to_out = self.to_out[0]
-        # else:
-        #     to_out = self.to_out
 
         def forward(input_tensor, temb):
             hidden_states = input_tensor
@@ -246,7 +246,7 @@ def register_attention_control(model, controller, res_skip_layers=3):
 
     def register_recr(net_, count, place_in_unet):
         if net_.__class__.__name__ == 'CrossAttention':
-            net_._attention, net_.forward = ca_forward(net_, place_in_unet, controller)
+            _sliced_attention, net_._attention, net_.forward = ca_forward(net_, place_in_unet, controller)
             return count + 1
         elif hasattr(net_, 'children'):
             for net__ in net_.children():
@@ -278,9 +278,8 @@ def register_attention_control(model, controller, res_skip_layers=3):
 
     controller.num_att_layers = cross_att_count
 
-    if controller.__class__.__name__ != 'AttentionJustReweight':
-        res_count = find_res(model.unet.up_blocks)
-        controller.num_conv_layers = sum(res_count)
+    res_count = find_res(model.unet.up_blocks)
+    controller.num_conv_layers = sum(res_count)
 
 
 def get_word_inds(text: str, word_place: int, tokenizer):
