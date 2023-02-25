@@ -40,7 +40,7 @@ from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionS
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
-class StableDiffusionPipeline(DiffusionPipeline):
+class P2pPipeline(DiffusionPipeline):
     r"""
     Pipeline for text-to-image generation using Stable Diffusion.
 

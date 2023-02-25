@@ -237,7 +237,7 @@ class AttentionControlEdit(AttentionStore, abc.ABC):
 
     def replace_self_attention(self, attn_base, att_replace, place_in_unet):
         #TODO consider swapping uncond self attn too?
-        if att_replace.shape[2] <= self.threshold_res ** 2:
+        if att_replace.shape[2] <= (self.total_pixels_full_res ** 0.5) // (2 ** self.threshold_res):
             attn_base = attn_base.unsqueeze(0).expand(att_replace.shape[0], *attn_base.shape)
             return att_replace * (1 - self.self_attn_mix_schedule[self.cur_step]) + (attn_base * self.self_attn_mix_schedule[self.cur_step])
         else:
@@ -347,7 +347,7 @@ class AttentionControlEdit(AttentionStore, abc.ABC):
         self.num_steps = num_steps
         self.invert_cross_steps = invert_cross_steps
         chans = 77 * 8 * (self.batch_size//2)# if attn_slices is None else 77 * attn_slices
-        self.smoother = GaussianSmoothing(chans, kernel_size=3, sigma=0.8).to(device).to(dtype)
+        self.smoother = GaussianSmoothing(chans, kernel_size=3, sigma=0.7).to(device).to(dtype)
         self.total_pixels_full_res = image_size[0] * image_size[1]
         self.smooth_mask = smooth_mask
         self.smooth_steps = int(num_steps * smooth_steps)
@@ -403,7 +403,7 @@ class AttentionReweight(AttentionControlEdit):
 
 def make_controller(prompts, tokenizer, NUM_DDIM_STEPS, cross_replace_steps: Dict[str, float],
                     self_replace_steps: float, blend_words=None, subtract_words=None, start_blend=0.2, th=(.3, .3),
-                    device=None, dtype=None, equalizer=None, conv_replace_steps=0.3, threshold_res=32,
+                    device=None, dtype=None, equalizer=None, conv_replace_steps=0.3, threshold_res=1,
                     conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None, invert_mask=False, max_pool=True, image_size=(512,512), use_uncond_attn=False, invert_cross_steps=False, smooth_steps=0.4) -> AttentionControlEdit:
     if blend_words is None:
         lb = None
@@ -416,14 +416,14 @@ def make_controller(prompts, tokenizer, NUM_DDIM_STEPS, cross_replace_steps: Dic
     # else:
     controller = AttentionRefine(prompts, NUM_DDIM_STEPS, tokenizer, cross_replace_steps=cross_replace_steps,
                                  self_replace_steps=self_replace_steps, local_blend=lb, device=device, dtype=dtype,
-                                 conv_replace_steps=conv_replace_steps, threshold_res=threshold_res, conv_mix_schedule=conv_mix_schedule,
+                                 conv_replace_steps=conv_replace_steps, threshold_res=int(threshold_res), conv_mix_schedule=conv_mix_schedule,
                                  self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule, use_uncond_attn=use_uncond_attn, invert_cross_steps=invert_cross_steps,smooth_steps=smooth_steps, image_size=image_size)
     if equalizer is not None:
         smooth_mask = torch.where(equalizer != 1)[1]
         controller = AttentionReweight(prompts, NUM_DDIM_STEPS, tokenizer, cross_replace_steps=cross_replace_steps,
                                        self_replace_steps=self_replace_steps, equalizer=equalizer, local_blend=lb,
                                        controller=controller, device=device, dtype=dtype, conv_replace_steps=conv_replace_steps,
-                                       threshold_res=threshold_res, conv_mix_schedule=conv_mix_schedule,
+                                       threshold_res=int(threshold_res), conv_mix_schedule=conv_mix_schedule,
                                  self_attn_mix_schedule=self_attn_mix_schedule, cross_attn_mix_schedule=cross_attn_mix_schedule, use_uncond_attn=use_uncond_attn,
                                        invert_cross_steps=invert_cross_steps, smooth_steps=smooth_steps, image_size=image_size, smooth_mask=smooth_mask)
     return controller
