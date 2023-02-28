@@ -246,7 +246,7 @@ def register_attention_control(model, controller, res_skip_layers=3):
 
     def register_recr(net_, count, place_in_unet):
         if net_.__class__.__name__ == 'CrossAttention':
-            _sliced_attention, net_._attention, net_.forward = ca_forward(net_, place_in_unet, controller)
+            net_._sliced_attention, net_._attention, net_.forward = ca_forward(net_, place_in_unet, controller)
             return count + 1
         elif hasattr(net_, 'children'):
             for net__ in net_.children():

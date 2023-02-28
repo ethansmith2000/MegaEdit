@@ -4,11 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="more stuff">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/p2p/prompt2prompt.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p/prompt2prompt.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pipeline.py" beforeDir="false" afterPath="$PROJECT_DIR$/p2p_pipeline.py" afterDir="false" />
-    </list>
+    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="update notebook, other small fixes" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -240,7 +236,14 @@
       <option name="project" value="LOCAL" />
       <updated>1677277657972</updated>
     </task>
-    <option name="localTasksCounter" value="27" />
+    <task id="LOCAL-00027" summary="update notebook, other small fixes">
+      <created>1677357950635</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1677357950635</updated>
+    </task>
+    <option name="localTasksCounter" value="28" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -255,7 +258,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="first" />
     <MESSAGE value="alls in a good place" />
     <MESSAGE value="updates" />
     <MESSAGE value="combined controller works" />
@@ -280,6 +282,7 @@
     <MESSAGE value="allow for sliced attn" />
     <MESSAGE value="attempt at gauss smooth" />
     <MESSAGE value="more stuff" />
-    <option name="LAST_COMMIT_MESSAGE" value="more stuff" />
+    <MESSAGE value="update notebook, other small fixes" />
+    <option name="LAST_COMMIT_MESSAGE" value="update notebook, other small fixes" />
   </component>
 </project>
