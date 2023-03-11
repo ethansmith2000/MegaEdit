@@ -25,9 +25,9 @@ class MegaEdit:
         if attn_slices != "0":
             self.pipe.set_attention_slice(attn_slices)
 
-    def invert_image(self, path_to_image, prompt, steps=50, width=512, height=512):
+    def invert_image(self, init_image, prompt, steps=50, width=512, height=512):
         # these params do well, we can improve if we do begin inversion at half noise level (x_T/2) for example rather than x0, but i've botched it for now
-        init_image = Image.open(path_to_image).convert("RGB").resize((width, height))
+        init_image = init_image.convert("RGB").resize((width, height))
         latents = do_inversion(self.pipe, init_image, prompt,
                                height=height, width=width,
                                end_noise=1.0,
