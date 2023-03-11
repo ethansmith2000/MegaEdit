@@ -53,8 +53,9 @@ class LocalBlend:
         return x_t
 
     # th is threshold for mask
-    def __init__(self, prompts: List[str], words: [List[List[str]]], tokenizer, NUM_DDIM_STEPS, subtract_words=None,
+    def __init__(self, prompts: List[str], words, tokenizer, NUM_DDIM_STEPS, subtract_words=None,
                  start_blend=0.2, th=(.3, .3), MAX_NUM_WORDS=77, device=None, dtype=None, invert_mask=False, max_pool=True, image_size=(512,512)):
+        words = ((words, "blank"))
         alpha_layers = torch.zeros(len(prompts), 1, 1, 1, 1, MAX_NUM_WORDS)
         for i, (prompt, words_) in enumerate(zip(prompts, words)):
             if type(words_) is str:
@@ -237,7 +238,7 @@ class AttentionControlEdit(AttentionStore, abc.ABC):
 
     def replace_self_attention(self, attn_base, att_replace, place_in_unet):
         #TODO consider swapping uncond self attn too?
-        if att_replace.shape[2] <= (self.total_pixels_full_res ** 0.5) // (2 ** self.threshold_res):
+        if att_replace.shape[2] <= self.total_pixels_full_res // self.threshold_res:
             attn_base = attn_base.unsqueeze(0).expand(att_replace.shape[0], *attn_base.shape)
             return att_replace * (1 - self.self_attn_mix_schedule[self.cur_step]) + (attn_base * self.self_attn_mix_schedule[self.cur_step])
         else:
@@ -302,7 +303,7 @@ class AttentionControlEdit(AttentionStore, abc.ABC):
                 attn_replace_new = attn_replace_new * alpha_words + (1 - alpha_words) * attn_replace
                 attn[3:] = attn_replace_new
             else:
-                if attn_replace.shape[2] <= self.threshold_res ** 2:
+                if attn_replace.shape[2] <= self.threshold_res:
                     mask = torch.tensor([1, 0, 1, 0], dtype=bool)
                     attn[~mask] = (attn[~mask] * (1 - self.self_attn_mix_schedule[self.cur_step]) + (
                                 attn[mask] * self.self_attn_mix_schedule[self.cur_step]))
@@ -357,7 +358,6 @@ class AttentionControlEdit(AttentionStore, abc.ABC):
 class AttentionRefine(AttentionControlEdit):
 
     def replace_cross_attention(self, attn_base, att_replace):
-        #TODO i dont entirely understand this indexing here
         attn_base_replace = attn_base[:, :, self.mapper].permute(2, 0, 1, 3)
         attn_new_replace = attn_base_replace * self.alphas + att_replace * (1 - self.alphas)
         # attn_replace = attn_replace / attn_replace.sum(-1, keepdims=True)
@@ -403,8 +403,11 @@ class AttentionReweight(AttentionControlEdit):
 
 def make_controller(prompts, tokenizer, NUM_DDIM_STEPS, cross_replace_steps: Dict[str, float],
                     self_replace_steps: float, blend_words=None, subtract_words=None, start_blend=0.2, th=(.3, .3),
-                    device=None, dtype=None, equalizer=None, conv_replace_steps=0.3, threshold_res=1,
+                    device=None, dtype=None, equalizer=None, conv_replace_steps=0.3, threshold_res=0,
                     conv_mix_schedule=None, self_attn_mix_schedule=None, cross_attn_mix_schedule=None, invert_mask=False, max_pool=True, image_size=(512,512), use_uncond_attn=False, invert_cross_steps=False, smooth_steps=0.4) -> AttentionControlEdit:
+
+    threshold_res = ((image_size[0]//8) * (image_size[1]//8) // 2**threshold_res)
+
     if blend_words is None:
         lb = None
     else:

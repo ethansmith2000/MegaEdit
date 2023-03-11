@@ -1,2 +1,4 @@
-pip install stanza
-pip install nltk
+diffusers
+transformers
+accelerate
+

@@ -4,7 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="update notebook, other small fixes" />
+    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="fix slice attn">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -243,7 +245,14 @@
       <option name="project" value="LOCAL" />
       <updated>1677357950635</updated>
     </task>
-    <option name="localTasksCounter" value="28" />
+    <task id="LOCAL-00028" summary="fix slice attn">
+      <created>1677545115818</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1677545115818</updated>
+    </task>
+    <option name="localTasksCounter" value="29" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -258,7 +267,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="alls in a good place" />
     <MESSAGE value="updates" />
     <MESSAGE value="combined controller works" />
     <MESSAGE value="all functioning, maybe silent bugs though?" />
@@ -283,6 +291,7 @@
     <MESSAGE value="attempt at gauss smooth" />
     <MESSAGE value="more stuff" />
     <MESSAGE value="update notebook, other small fixes" />
-    <option name="LAST_COMMIT_MESSAGE" value="update notebook, other small fixes" />
+    <MESSAGE value="fix slice attn" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix slice attn" />
   </component>
 </project>
