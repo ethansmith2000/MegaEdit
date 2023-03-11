@@ -4,11 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="nice wrapper">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ethanedit.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/megaedit.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/run.py" beforeDir="false" afterPath="$PROJECT_DIR$/run.py" afterDir="false" />
-    </list>
+    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="notebook" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -261,7 +257,14 @@
       <option name="project" value="LOCAL" />
       <updated>1678510562490</updated>
     </task>
-    <option name="localTasksCounter" value="30" />
+    <task id="LOCAL-00030" summary="notebook">
+      <created>1678511249134</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1678511249134</updated>
+    </task>
+    <option name="localTasksCounter" value="31" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -276,7 +279,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="combined controller works" />
     <MESSAGE value="all functioning, maybe silent bugs though?" />
     <MESSAGE value="spare us some time with edict if we're inverting w/o cfg" />
     <MESSAGE value="begin inversion from halfway point" />
@@ -301,6 +303,7 @@
     <MESSAGE value="update notebook, other small fixes" />
     <MESSAGE value="fix slice attn" />
     <MESSAGE value="nice wrapper" />
-    <option name="LAST_COMMIT_MESSAGE" value="nice wrapper" />
+    <MESSAGE value="notebook" />
+    <option name="LAST_COMMIT_MESSAGE" value="notebook" />
   </component>
 </project>

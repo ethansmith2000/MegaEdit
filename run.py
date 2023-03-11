@@ -42,13 +42,14 @@ class MegaEdit:
 
     def run_edit(self,
                  prompt, # str
+                 guidance_scale=7.5,
                  local_edit_word=None, #str
                  invert_local_edit=False,
                  neg_prompt="bad quality, low resolution, jpg artifacts",
                  cross_replace_steps=0.5,  # 0.0 - 0.5 is good
                  self_replace_steps=0.65,  # 0.25-0.65
                  conv_replace_steps=0.55,  # 0.25-0.6, typically like this one lower than self replace
-                 ):
+                 **kwargs):
         if self.latents is None:
             raise Exception("You must invert an image before running an edit!")
 
@@ -76,7 +77,7 @@ class MegaEdit:
             "end": 0.7,
             "start_buffer": 0,
             "start_buffer_value": 1.0,
-        }
+        } if "cross_schedule" not in kwargs else kwargs["cross_schedule"]
 
         # can try lowering start/start_buffer_value a tad,
         # but biggest thing to experiment with is the end value for which 0.2-0.7 are interesting
@@ -85,13 +86,13 @@ class MegaEdit:
             "end": 0.45,
             "start_buffer": int(self.steps * 0.2),
             "start_buffer_value": 1.0,
-        }
+        } if "self_schedule" not in kwargs else kwargs["cross_schedule"]
         conv_schedule = {
             "start": 1.0,
             "end": 0.45,
             "start_buffer": int(self.steps * 0.2),
             "start_buffer_value": 1.0,
-        }
+        } if "conv_schedule" not in kwargs else kwargs["cross_schedule"]
 
         # all of the _____replace_steps are percent into run when we stop injecting
         attn_controller = make_controller(prompts,
@@ -100,7 +101,8 @@ class MegaEdit:
                                           self_replace_steps=self_replace_steps,
                                           device=self.device,
                                           dtype=self.dtype,
-                                          threshold_res=0, # 0, 1, or 2 at 0 attn injection is done at all layers, at 1 the largest resolution layer is skipped, at 2 only the smallest attn layers will do it
+                                          threshold_res=0 if "threshold_res" not in kwargs else kwargs["threshold_res"],
+                                          # 0, 1, or 2 at 0 attn injection is done at all layers, at 1 the largest resolution layer is skipped, at 2 only the smallest attn layers will do it
                                           # the layers with the highest attn size is image size /8, layers below specified value will be skipped
                                           conv_replace_steps=conv_replace_steps,
                                           equalizer=eq,
@@ -109,15 +111,15 @@ class MegaEdit:
                                           self_attn_mix_schedule=self_schedule,
                                           blend_words=local_edit_word,
                                           image_size=(self.width, self.height),
-                                          smooth_steps=0.5,
+                                          smooth_steps=0.5 if "smooth_steps" not in kwargs else kwargs["smooth_steps"],
                                           invert_mask=invert_local_edit,
                                           )
-        register_attention_control(self.pipe, attn_controller,res_skip_layers=2)
+        register_attention_control(self.pipe, attn_controller,res_skip_layers=2 if "res_skip_layers" not in kwargs else kwargs["res_skip_layers"])
         # res skip layers determines how many upblock conv layers receive injection, res_skip_layers=2 will skip first 3 as per paper
 
         # neg_prompt = ""
         img = self.pipe(prompts, latents=self.latents,
-                   negative_prompt=[neg_prompt] * 2, guidance_scale=(1, 8),
+                   negative_prompt=[neg_prompt] * 2, guidance_scale=(1, guidance_scale),
                    # we have to use a special pipeline to allow for us to use diff guidance scales for each image
                    width=self.width,
                    height=self.height,
