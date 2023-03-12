@@ -23,17 +23,20 @@ class MegaEdit:
     def invert_image(self, init_image, prompt, steps=50, width=512, height=512):
         # these params do well, we can improve if we do begin inversion at half noise level (x_T/2) for example rather than x0, but i've botched it for now
         init_image = init_image.convert("RGB").resize((width, height))
+        # if we already registered the attn controller, we will now have to unregister it
+        register_attention_control(self.pipe, None)
         latents = do_inversion(self.pipe, init_image, prompt,
                                height=height, width=width,
                                end_noise=1.0,
                                begin_noise=0.0,
-                               steps=50,
+                               steps=steps,
                                mix_weight=1.0, guidance_scale=1.0)
         self.latents = latents[0].repeat(2, 1, 1, 1)
         self.width = width
         self.height = height
         self.inversion_prompt = prompt
         self.steps = steps
+        self.attn_controller = None
 
     def run_edit(self,
                  prompt, # str
@@ -79,18 +82,18 @@ class MegaEdit:
         self_schedule = {
             "start": 1.0,
             "end": 0.45,
-            "start_buffer": int(self.steps * 0.2),
+            "start_buffer": int(self.steps * 0.15),
             "start_buffer_value": 1.0,
         } if "self_schedule" not in kwargs else kwargs["cross_schedule"]
         conv_schedule = {
             "start": 1.0,
             "end": 0.45,
-            "start_buffer": int(self.steps * 0.2),
+            "start_buffer": int(self.steps * 0.15),
             "start_buffer_value": 1.0,
         } if "conv_schedule" not in kwargs else kwargs["cross_schedule"]
 
         # all of the _____replace_steps are percent into run when we stop injecting
-        attn_controller = make_controller(prompts,
+        self.attn_controller = make_controller(prompts,
                                           self.pipe.tokenizer, self.steps,
                                           cross_replace_steps=cross_replace_steps,
                                           self_replace_steps=self_replace_steps,
@@ -109,7 +112,8 @@ class MegaEdit:
                                           smooth_steps=0.5 if "smooth_steps" not in kwargs else kwargs["smooth_steps"],
                                           invert_mask=invert_local_edit,
                                           )
-        register_attention_control(self.pipe, attn_controller,res_skip_layers=2 if "res_skip_layers" not in kwargs else kwargs["res_skip_layers"])
+
+        register_attention_control(self.pipe, self.attn_controller,res_skip_layers=2 if "res_skip_layers" not in kwargs else kwargs["res_skip_layers"])
         # res skip layers determines how many upblock conv layers receive injection, res_skip_layers=2 will skip first 3 as per paper
 
         # neg_prompt = ""
@@ -119,6 +123,6 @@ class MegaEdit:
                    width=self.width,
                    height=self.height,
                    num_inference_steps=self.steps,
-                   callback=attn_controller.step_callback).images  # the call back is so that we can do local blend, basically locally edit image
+                   callback=self.attn_controller.step_callback).images  # the call back is so that we can do local blend, basically locally edit image
 
         return img # returns a list of 2 images, the first is the reconstruction, the second is the edited image
