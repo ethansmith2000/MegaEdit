@@ -16,9 +16,8 @@ import numpy as np
 import torch
 from PIL import Image, ImageDraw, ImageFont
 import cv2
-from typing import Optional, Union, Tuple, List, Callable, Dict
+from typing import Optional, Union, Tuple, Dict
 from IPython.display import display
-from tqdm.notebook import tqdm
 import torch.nn.functional as F
 
 def get_schedule(num_steps, start, end, start_buffer=0, start_buffer_value=None):

@@ -1,39 +1,9 @@
-import torch
-from transformers import CLIPModel, CLIPTextModel, CLIPTokenizer
-from omegaconf import OmegaConf
-import matplotlib.pyplot as plt
-import math
-import imageio
-from PIL import Image
-import torchvision
-import torch.nn.functional as F
-import torch
+
 import numpy as np
 from PIL import Image
-import matplotlib.pyplot as plt
-import time
-import datetime
 import torch
-import sys
-import os
-from torchvision import datasets
-import pickle
-
-# StableDiffusion P2P implementation originally from https://github.com/bloc97/CrossAttentionControl
-
-# Have diffusers with hardcoded double-casting instead of float
-from diffusers import AutoencoderKL, UNet2DConditionModel
-from diffusers.schedulers.scheduling_utils import SchedulerOutput
 from diffusers import LMSDiscreteScheduler, PNDMScheduler, DDPMScheduler, DDIMScheduler
-
-import random
 from tqdm.auto import tqdm
-from torch import autocast
-from difflib import SequenceMatcher
-
-
-# has to be done with attn slicing
-# unet.set_attention_slice(1)
 
 
 def do_inversion(pipe,

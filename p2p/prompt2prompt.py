@@ -1,14 +1,10 @@
 from typing import Optional, Union, Tuple, List, Callable, Dict
-from tqdm.notebook import tqdm
 import torch
-from diffusers import StableDiffusionPipeline, DDIMScheduler
 import torch.nn.functional as F
 import numpy as np
 import abc
 import p2p.ptp_utils as ptp_utils
 import p2p.seq_aligner as seq_aligner
-import shutil
-from torch.optim.adam import Adam
 from PIL import Image
 from p2p.ptp_utils import get_schedule
 

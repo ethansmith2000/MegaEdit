@@ -1,4 +1,7 @@
 diffusers
 transformers
 accelerate
-
+Pillow
+numpy
+opencv-python
+einops==0.6.0

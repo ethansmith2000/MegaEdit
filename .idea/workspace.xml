@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="notebook" />
+    <list default="true" id="2aa20f89-9e22-4cb5-aed7-8a8fa08a8ab1" name="Changes" comment="finishing touches" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -264,7 +264,14 @@
       <option name="project" value="LOCAL" />
       <updated>1678511249134</updated>
     </task>
-    <option name="localTasksCounter" value="31" />
+    <task id="LOCAL-00031" summary="finishing touches">
+      <created>1678557825453</created>
+      <option name="number" value="00031" />
+      <option name="presentableId" value="LOCAL-00031" />
+      <option name="project" value="LOCAL" />
+      <updated>1678557825453</updated>
+    </task>
+    <option name="localTasksCounter" value="32" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -279,7 +286,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="all functioning, maybe silent bugs though?" />
     <MESSAGE value="spare us some time with edict if we're inverting w/o cfg" />
     <MESSAGE value="begin inversion from halfway point" />
     <MESSAGE value="archive regular inversion" />
@@ -304,6 +310,7 @@
     <MESSAGE value="fix slice attn" />
     <MESSAGE value="nice wrapper" />
     <MESSAGE value="notebook" />
-    <option name="LAST_COMMIT_MESSAGE" value="notebook" />
+    <MESSAGE value="finishing touches" />
+    <option name="LAST_COMMIT_MESSAGE" value="finishing touches" />
   </component>
 </project>
