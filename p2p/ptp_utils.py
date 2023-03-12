@@ -23,8 +23,13 @@ import torch.nn.functional as F
 def get_schedule(num_steps, start, end, start_buffer=0, start_buffer_value=None):
     if start_buffer_value is None:
         start_buffer_value = start
+    if num_steps <= start_buffer:
+        diff = start_buffer - num_steps
+        num_steps = num_steps + diff + 1
+    else:
+        diff = 0
     schedule = np.linspace(start, end, num_steps - start_buffer).tolist()
-    schedule = [start_buffer_value] * start_buffer + schedule
+    schedule = [start_buffer_value] * (start_buffer - diff) + schedule
     return schedule
 
 def register_attention_control(model, controller, res_skip_layers=3):
