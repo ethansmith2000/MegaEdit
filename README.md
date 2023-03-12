@@ -31,16 +31,18 @@ Smoothing example:
 <img width="1310" alt="Screen Shot 2023-02-21 at 5 47 16 PM" src="https://user-images.githubusercontent.com/98723285/224555971-6e964c6a-327f-4b40-a507-ff4e97d6685b.png">
 
 
+Other editing examples
 
-![download (5)](https://user-images.githubusercontent.com/98723285/224555364-d7505bb9-c918-4c96-bade-313f4ad073ca.png)
-![output2](https://user-images.githubusercontent.com/98723285/224555383-2e0a67bf-f0b4-4cec-b06c-2ff859e15c24.png)
+<img width="640" alt="david edits" src="https://user-images.githubusercontent.com/98723285/224555364-d7505bb9-c918-4c96-bade-313f4ad073ca.png">
+<img width="640" alt="david refines" src="https://user-images.githubusercontent.com/98723285/224555383-2e0a67bf-f0b4-4cec-b06c-2ff859e15c24.png">
 
 <img width="1278" alt="superhero" src="https://user-images.githubusercontent.com/98723285/224556519-61ce8daa-8202-4541-a545-5faa30cb95c7.png">
 
 ![download (25)](https://user-images.githubusercontent.com/98723285/224556727-a75ccab9-885a-4d4d-b828-7367123c45bb.png)
 
-<img width="1030" alt="Screen Shot 2023-02-06 at 10 41 21 PM" src="https://user-images.githubusercontent.com/98723285/224556758-b603cbed-d78b-4540-b82b-7dd824ef5b3f.png">
-![Untitled-1](https://user-images.githubusercontent.com/98723285/224556960-ddc8ff50-f81e-4796-92f7-b6fe156c5965.png)
+<img width="1030" alt="link edits" src="https://user-images.githubusercontent.com/98723285/224556758-b603cbed-d78b-4540-b82b-7dd824ef5b3f.png">
+
+<img width="1030" alt="Me" src="https://user-images.githubusercontent.com/98723285/224556960-ddc8ff50-f81e-4796-92f7-b6fe156c5965.png">
 
 Usefulness of attention reweighing, an alternative to how automatic1111 does it which is at the text encoder level, and better solution for when SD isn't listening to your prompt.
 
