@@ -17,7 +17,7 @@ This includes:
 My own addons include:
   - injecting an interpolation of original and proposed features, which is on a schedule. This allows us to have influence from the original features much further into the generation without fully taking over the generation. This gradual approach may confer similar benefits to (https://github.com/pix2pixzero/pix2pix-zero)
   - split guidance scale. This allows to do inversion without classifier free guidance for stability, but do editing at a different guidance scale
-  - Gaussian Smoothed attention. the original intention behind this was to allow attention to cover more ground before amplifying it. Instead, I am noticing less erratic details and less of a photobashed look, both charactersitic of SD
+  - Gaussian Smoothed attention. the original intention behind this was to allow attention to cover more ground before amplifying it. Instead, I am noticing less erratic details and less of a photobashed look. See the examples below.
   - (WIP) An attempt at gradient-free attend and excite by locally amplifying attention in a region of the image. This isn't optimal as original method optimizes latents, but hope that giving special care to certain tokens can help give a simiilar effect without adding too much time/VRAM
   - Some other QoL improvements for easy deployment and demystifying some of the parameters
 
