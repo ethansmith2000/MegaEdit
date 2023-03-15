@@ -12,7 +12,7 @@ This repo was originally based off of prompt2prompt but contains a number of imp
 
 This includes:
   - injection of convolution features (https://arxiv.org/abs/2211.12572)
-  - originally used EDICT for inversion but now uses standard DDIM inversion (https://github.com/salesforce/EDICT)
+  - originally used EDICT for inversion but now the args passed make it just do standard DDIM inversion (https://github.com/salesforce/EDICT)
 
 My own addons include:
   - injecting an interpolation of original and proposed features, which is on a schedule. This allows us to have influence from the original features much further into the generation without fully taking over the generation. This gradual approach may confer similar benefits to (https://github.com/pix2pixzero/pix2pix-zero)
