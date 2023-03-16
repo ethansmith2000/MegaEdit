@@ -5,6 +5,9 @@ A collection of works on inversion and diffusion image editing via feature/atten
 ![barack2 (5) copy](https://user-images.githubusercontent.com/98723285/224556125-bb031128-d9d7-49e3-82b8-dcd6dfa0093b.png)
 ![land](https://user-images.githubusercontent.com/98723285/224556442-f0357d36-60df-4d79-8303-fd4dcfd3c164.jpeg)
 
+colab demo: https://drive.google.com/file/d/1qBPkSVr2zf-KyQgdeke4fBUFLc8cWnWu/view?usp=sharing
+
+*special thanks to the team at Leonardo.ai for helping me put this together*
 
 NOTE: this is not compatible with Xformers, but it does support sliced attention if you are experiencing memory issues
 
